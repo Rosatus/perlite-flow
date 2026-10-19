@@ -29,7 +29,13 @@ class FileTreeView extends StatelessWidget {
       padding: EdgeInsets.zero,
       children: [
         for (final n in nodes)
-          _buildNode(context, n, depth: 0),
+          _buildNode(
+            context,
+            n,
+            depth: 0,
+            onOpenNote: onOpenNote,
+            onOpenAttachment: onOpenAttachment,
+          ),
       ],
     );
   }
