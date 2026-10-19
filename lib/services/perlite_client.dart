@@ -145,6 +145,17 @@ class PerliteClient {
       for (final el in container.children) {
         if (!el.classes.contains('tree-item')) continue;
         if (el.classes.contains('nav-folder')) {
+          // Perlite wraps the real top-level list inside a synthetic
+          // `.nav-folder.mod-root` whose self is the vault switcher UI.
+          // Descend straight into it instead of treating it as a folder
+          // named after the first nested folder's title.
+          if (el.classes.contains('mod-root')) {
+            final inner = el.querySelector('.tree-item-children');
+            if (inner != null) {
+              nodes.addAll(parseContainer(inner));
+              continue;
+            }
+          }
           final titleEl = el.querySelector('.nav-folder-title-content');
           final childrenEl = el.querySelector('.nav-folder-children');
           nodes.add(FileNode(
