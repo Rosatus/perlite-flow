@@ -232,8 +232,11 @@ class _LeafTile extends StatelessWidget {
   }
 }
 
-/// Paints `depth` vertical guide lines along the left edge of [child]
-/// so nested children still show which folder they belong to.
+/// Paints a single vertical guide at the chevron column of the parent
+/// folder. Nested children pick up additional guides from their own
+/// `_Guides` ancestors, so each layer only ever draws one line — the
+/// parent's. This keeps x-positions exact and avoids a single
+/// painter trying to reproduce every ancestor's geometry.
 class _Guides extends StatelessWidget {
   final int depth;
   final Color color;
@@ -271,12 +274,10 @@ class _GuidePainter extends CustomPainter {
       ..color = color
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
-    // Each ancestor level contributes one vertical line, positioned at
-    // the centre of where its chevron column was.
-    for (var i = 0; i < depth; i++) {
-      final x = _FolderTileState._indent(i) + 9; // centre of 18px icon
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
+    // One guide per _Guides wrapper — at the x-centre of the parent
+    // folder's chevron so the line reads as "hanging" from it.
+    final x = _FolderTileState._indent(depth) + 9; // centre of 18px icon
+    canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
   }
 
   @override
