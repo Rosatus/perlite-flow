@@ -66,6 +66,7 @@ test/real_*.html
 
 # One-off dev screenshots and helper scripts
 screenshot-*.png
+!docs/screenshot-*.png
 login*.png
 launcher.png
 app_open.png
