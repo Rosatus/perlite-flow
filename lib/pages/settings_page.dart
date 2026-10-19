@@ -150,7 +150,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Text(
                       c.label,
                       style: c.family != null
-                          ? _previewStyle(c.family!)
+                          ? _previewStyle(c)
                           : null,
                     ),
                   ),
@@ -166,9 +166,14 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {});
   }
 
-  /// Returns a preview style for a Google Fonts family. Null when the
-  /// family isn't in the bundled Google Fonts map (e.g. renamed upstream).
-  TextStyle? _previewStyle(String family) {
+  /// Returns a preview style for a font choice. Null when the family isn't
+  /// resolvable (e.g. Google Fonts renamed it upstream).
+  TextStyle? _previewStyle(FontChoice c) {
+    final family = c.family;
+    if (family == null) return null;
+    if (c.bundled) {
+      return TextStyle(fontFamily: family);
+    }
     try {
       return GoogleFonts.getFont(family);
     } catch (_) {

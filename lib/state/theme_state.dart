@@ -38,21 +38,20 @@ class ThemeState extends ChangeNotifier {
     FontChoice(id: 'system', label: '系统默认', family: null),
     FontChoice(id: 'notoSans', label: '思源黑体 Noto Sans SC', family: 'Noto Sans SC'),
     FontChoice(id: 'notoSerif', label: '思源宋体 Noto Serif SC', family: 'Noto Serif SC'),
-    // The plain 'LXGW WenKai' family isn't in the google_fonts map; only the
-    // TC variants are bundled. WenKai TC still covers simplified glyphs, so
-    // keep the option under its original id for existing saved prefs.
-    FontChoice(id: 'lxgw', label: '霞鹜文楷 LXGW WenKai TC', family: 'LXGW WenKai TC'),
+    // Simplified LXGW WenKai is bundled as an asset under assets/fonts/.
+    // See `bundled` — no runtime fetch needed.
+    FontChoice(id: 'lxgw', label: '霞鹜文楷 LXGW WenKai', family: 'LXGW WenKai', bundled: true),
     FontChoice(id: 'notoSansTC', label: '思源黑体 Noto Sans TC', family: 'Noto Sans TC'),
     FontChoice(id: 'notoSerifTC', label: '思源宋体 Noto Serif TC', family: 'Noto Serif TC'),
     FontChoice(id: 'ibmPlexSans', label: 'IBM Plex Sans', family: 'IBM Plex Sans'),
     FontChoice(id: 'inter', label: 'Inter', family: 'Inter'),
   ];
 
-  /// Resolves the currently selected family. Null when the user
-  /// picked 'system' or when the saved family isn't in `fontChoices`.
-  String? get effectiveFontFamily {
+  /// Resolves the currently selected choice. Null when the user picked
+  /// 'system' or when the saved id isn't in `fontChoices`.
+  FontChoice? get effectiveChoice {
     for (final c in fontChoices) {
-      if (c.id == fontFamily) return c.family;
+      if (c.id == fontFamily) return c;
     }
     return null;
   }
@@ -104,10 +103,15 @@ class ThemeState extends ChangeNotifier {
       useMaterial3: true,
       brightness: brightness,
     ).textTheme;
-    final family = effectiveFontFamily;
-    if (family == null) return base;
-    // Guard against a stale/removed family crashing the whole app — fall
-    // back to the platform theme when the Google Fonts map doesn't know it.
+    final choice = effectiveChoice;
+    final family = choice?.family;
+    if (choice == null || family == null) return base;
+    // Bundled fonts are declared in pubspec and resolve directly via
+    // fontFamily; Google Fonts names go through the package so it can
+    // lazy-load on first use.
+    if (choice.bundled) {
+      return base.apply(fontFamily: family);
+    }
     try {
       return GoogleFonts.getTextTheme(family, base);
     } catch (_) {
@@ -122,11 +126,16 @@ class FontChoice {
   final String id;
   /// Human-readable label shown in the settings list.
   final String label;
-  /// Google Fonts family name — null means "system default".
+  /// Family name — bundled name when `bundled`, otherwise Google Fonts.
+  /// Null means "system default".
   final String? family;
+  /// Whether [family] refers to a font bundled under assets/fonts/ rather
+  /// than a Google Fonts name resolved at runtime.
+  final bool bundled;
   const FontChoice({
     required this.id,
     required this.label,
     required this.family,
+    this.bundled = false,
   });
 }
