@@ -248,6 +248,8 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab.clamp(0, widget.ui.tabs.length - 1),
         onDestinationSelected: _onTab,
+        height: 56,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         destinations: [
           for (final t in widget.ui.tabs)
             NavigationDestination(
