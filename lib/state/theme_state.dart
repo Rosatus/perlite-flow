@@ -38,7 +38,12 @@ class ThemeState extends ChangeNotifier {
     FontChoice(id: 'system', label: '系统默认', family: null),
     FontChoice(id: 'notoSans', label: '思源黑体 Noto Sans SC', family: 'Noto Sans SC'),
     FontChoice(id: 'notoSerif', label: '思源宋体 Noto Serif SC', family: 'Noto Serif SC'),
-    FontChoice(id: 'lxgw', label: '霞鹜文楷 LXGW WenKai', family: 'LXGW WenKai'),
+    // The plain 'LXGW WenKai' family isn't in the google_fonts map; only the
+    // TC variants are bundled. WenKai TC still covers simplified glyphs, so
+    // keep the option under its original id for existing saved prefs.
+    FontChoice(id: 'lxgw', label: '霞鹜文楷 LXGW WenKai TC', family: 'LXGW WenKai TC'),
+    FontChoice(id: 'notoSansTC', label: '思源黑体 Noto Sans TC', family: 'Noto Sans TC'),
+    FontChoice(id: 'notoSerifTC', label: '思源宋体 Noto Serif TC', family: 'Noto Serif TC'),
     FontChoice(id: 'ibmPlexSans', label: 'IBM Plex Sans', family: 'IBM Plex Sans'),
     FontChoice(id: 'inter', label: 'Inter', family: 'Inter'),
   ];
@@ -101,7 +106,13 @@ class ThemeState extends ChangeNotifier {
     ).textTheme;
     final family = effectiveFontFamily;
     if (family == null) return base;
-    return GoogleFonts.getTextTheme(family, base);
+    // Guard against a stale/removed family crashing the whole app — fall
+    // back to the platform theme when the Google Fonts map doesn't know it.
+    try {
+      return GoogleFonts.getTextTheme(family, base);
+    } catch (_) {
+      return base;
+    }
   }
 }
 

@@ -150,7 +150,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Text(
                       c.label,
                       style: c.family != null
-                          ? GoogleFonts.getFont(c.family!)
+                          ? _previewStyle(c.family!)
                           : null,
                     ),
                   ),
@@ -164,6 +164,16 @@ class _SettingsPageState extends State<SettingsPage> {
     await widget.theme.setFontFamily(choice);
     if (!mounted) return;
     setState(() {});
+  }
+
+  /// Returns a preview style for a Google Fonts family. Null when the
+  /// family isn't in the bundled Google Fonts map (e.g. renamed upstream).
+  TextStyle? _previewStyle(String family) {
+    try {
+      return GoogleFonts.getFont(family);
+    } catch (_) {
+      return null;
+    }
   }
 
 
