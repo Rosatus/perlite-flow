@@ -210,7 +210,12 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Symbols.flowsheet, size: 22, color: cs.primary),
             const SizedBox(width: 10),
-            const Text('Perlite Flow'),
+            Flexible(
+              child: Text(
+                _appBarTitle,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -260,6 +265,20 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  String get _appBarTitle {
+    switch (widget.ui.appBarTitleMode) {
+      case AppBarTitleMode.app:
+        return 'Perlite Flow';
+      case AppBarTitleMode.profile:
+        final p = widget.app.active;
+        if (p == null) return 'Perlite Flow';
+        return p.name.isEmpty ? p.baseUrl : p.name;
+      case AppBarTitleMode.custom:
+        final t = widget.ui.customTitle.trim();
+        return t.isEmpty ? 'Perlite Flow' : t;
+    }
   }
 
   VoidCallback get _onRefreshForTab {

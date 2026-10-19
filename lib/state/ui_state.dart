@@ -9,6 +9,15 @@ import '../models/nav_tab.dart';
 class UiState extends ChangeNotifier {
   static const _orderKey = 'nav_tab_order';
   static const _defaultKey = 'nav_default_tab';
+  static const _appBarModeKey = 'appbar_title_mode';
+  static const _appBarTextKey = 'appbar_title_text';
+
+  /// How the top AppBar title is rendered on HomePage.
+  /// * `app` — always "Perlite Flow" (current hardcoded behaviour)
+  /// * `profile` — the active server profile's display name
+  /// * `custom` — free-form text stored in [customTitle]
+  AppBarTitleMode appBarTitleMode = AppBarTitleMode.app;
+  String customTitle = '';
 
   /// Visible tabs in display order. Never empty — at minimum the user
   /// keeps one tab so there's something to look at.
@@ -42,7 +51,22 @@ class UiState extends ChangeNotifier {
         defaultTab = t;
       }
     }
+    final modeStr = prefs.getString(_appBarModeKey);
+    if (modeStr != null) {
+      final m = AppBarTitleMode.tryParse(modeStr);
+      if (m != null) appBarTitleMode = m;
+    }
+    customTitle = prefs.getString(_appBarTextKey) ?? '';
     notifyListeners();
+  }
+
+  Future<void> setAppBarTitle(AppBarTitleMode mode, {String? text}) async {
+    appBarTitleMode = mode;
+    if (text != null) customTitle = text;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_appBarModeKey, mode.name);
+    await prefs.setString(_appBarTextKey, customTitle);
   }
 
   Future<void> setOrder(List<NavTab> next) async {
@@ -78,5 +102,24 @@ class UiState extends ChangeNotifier {
       next.remove(t);
     }
     await setOrder(next);
+  }
+}
+
+/// Where the AppBar title comes from.
+enum AppBarTitleMode {
+  /// Static "Perlite Flow" — the app's brand mark.
+  app,
+
+  /// The active server profile's display name (or base URL if unset).
+  profile,
+
+  /// User-supplied free text. Empty falls back to `app`.
+  custom;
+
+  static AppBarTitleMode? tryParse(String s) {
+    for (final m in values) {
+      if (m.name == s) return m;
+    }
+    return null;
   }
 }

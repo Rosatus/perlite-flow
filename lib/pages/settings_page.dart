@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/server_profile.dart';
 import '../models/nav_tab.dart';
@@ -28,11 +29,19 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   int _cacheBytes = 0;
   int _cacheLimit = NoteCache.defaultLimitBytes;
+  String _version = '';
 
   @override
   void initState() {
     super.initState();
     _loadCacheStats();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() => _version = 'v${info.version} (${info.buildNumber})');
   }
 
   Future<void> _loadCacheStats() async {
@@ -89,6 +98,86 @@ class _SettingsPageState extends State<SettingsPage> {
       await widget.app.cache.setLimitBytes(v * 1024 * 1024);
       await _loadCacheStats();
     }
+  }
+
+  String get _appBarSubtitle {
+    switch (widget.ui.appBarTitleMode) {
+      case AppBarTitleMode.app:
+        return 'Perlite Flow';
+      case AppBarTitleMode.profile:
+        final p = widget.app.active;
+        return p == null
+            ? '跟随当前仓库'
+            : '跟随当前仓库（${p.name.isEmpty ? p.baseUrl : p.name}）';
+      case AppBarTitleMode.custom:
+        final t = widget.ui.customTitle.trim();
+        return t.isEmpty ? '自定义文字' : '自定义：$t';
+    }
+  }
+
+  Future<void> _editAppBarTitle() async {
+    final ui = widget.ui;
+    var mode = ui.appBarTitleMode;
+    final ctrl = TextEditingController(text: ui.customTitle);
+    final choice = await showDialog<AppBarTitleMode>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('顶部标题'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<AppBarTitleMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: AppBarTitleMode.app,
+                    label: Text('Perlite Flow'),
+                  ),
+                  ButtonSegment(
+                    value: AppBarTitleMode.profile,
+                    label: Text('跟随仓库'),
+                  ),
+                  ButtonSegment(
+                    value: AppBarTitleMode.custom,
+                    label: Text('自定义'),
+                  ),
+                ],
+                selected: {mode},
+                onSelectionChanged: (s) =>
+                    setLocal(() => mode = s.first),
+              ),
+              if (mode == AppBarTitleMode.custom)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TextField(
+                    controller: ctrl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: '例如：我的知识库',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, mode),
+              child: const Text('确定'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null) return;
+    await ui.setAppBarTitle(choice, text: ctrl.text.trim());
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _deleteProfile(ServerProfile p) async {
@@ -287,6 +376,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(),
           const _SectionHeader('导航'),
+          ListTile(
+            leading: const Icon(Symbols.title),
+            title: const Text('顶部标题'),
+            subtitle: Text(_appBarSubtitle),
+            trailing: const Icon(Symbols.edit),
+            onTap: _editAppBarTitle,
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text(
@@ -318,10 +414,10 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(),
           const _SectionHeader('关于'),
-          const ListTile(
-            leading: Icon(Symbols.info),
-            title: Text('Perlite Flow'),
-            subtitle: Text('非官方 Perlite Android 客户端 · v1.0.0'),
+          ListTile(
+            leading: const Icon(Symbols.info),
+            title: const Text('Perlite Flow'),
+            subtitle: Text('Perlite Android 客户端 · $_version'),
           ),
         ],
       ),
