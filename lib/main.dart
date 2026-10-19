@@ -71,11 +71,13 @@ class _PerliteFlowAppState extends State<PerliteFlowApp> {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: light,
+        textTheme: theme.textThemeFor(Brightness.light),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: dark,
+        textTheme: theme.textThemeFor(Brightness.dark),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: _buildHome(),

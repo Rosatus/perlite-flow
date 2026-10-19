@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -114,6 +115,57 @@ class _SettingsPageState extends State<SettingsPage> {
         return t.isEmpty ? '自定义文字' : '自定义：$t';
     }
   }
+
+  String get _fontLabel {
+    final id = widget.theme.fontFamily;
+    for (final c in ThemeState.fontChoices) {
+      if (c.id == id) return c.label;
+    }
+    return '系统默认';
+  }
+
+  Future<void> _editFont() async {
+    final current = widget.theme.fontFamily;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('选择字体'),
+        children: [
+          for (final c in ThemeState.fontChoices)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, c.id),
+              child: Row(
+                children: [
+                  Icon(
+                    c.id == current
+                        ? Symbols.radio_button_checked
+                        : Symbols.radio_button_unchecked,
+                    size: 20,
+                    color: c.id == current
+                        ? Theme.of(ctx).colorScheme.primary
+                        : Theme.of(ctx).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      c.label,
+                      style: c.family != null
+                          ? GoogleFonts.getFont(c.family!)
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    await widget.theme.setFontFamily(choice);
+    if (!mounted) return;
+    setState(() {});
+  }
+
 
   Future<void> _editAppBarTitle() async {
     final ui = widget.ui;
@@ -373,6 +425,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ],
             ),
+          ),
+          ListTile(
+            leading: const Icon(Symbols.font_download),
+            title: const Text('字体'),
+            subtitle: Text(_fontLabel),
+            onTap: _editFont,
           ),
           const Divider(),
           const _SectionHeader('导航'),
