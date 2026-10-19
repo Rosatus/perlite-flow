@@ -73,3 +73,8 @@ gen_icons.ps1
 
 # AGENTS.md is repo-local config, not project docs
 AGENTS.md
+
+# Mock-server scratch output
+test/mock_server/*.err
+test/mock_server/*.log
+test/mock_server/node_modules/
