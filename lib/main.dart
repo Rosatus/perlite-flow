@@ -5,6 +5,7 @@ import 'pages/login_page.dart';
 import 'services/dynamic_color_service.dart';
 import 'state/app_state.dart';
 import 'state/theme_state.dart';
+import 'state/ui_state.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ class PerliteFlowApp extends StatefulWidget {
 class _PerliteFlowAppState extends State<PerliteFlowApp> {
   final AppState app = AppState();
   final ThemeState theme = ThemeState();
+  final UiState ui = UiState();
 
   /// Fetched once from Android 12+ Material You. Null when the device does
   /// not expose a core palette (pre-API 31 or no wallpaper colours set).
@@ -30,9 +32,11 @@ class _PerliteFlowAppState extends State<PerliteFlowApp> {
   void initState() {
     super.initState();
     theme.load();
+    ui.load();
     app.init();
     app.addListener(_onAppChange);
     theme.addListener(_onAppChange);
+    ui.addListener(_onAppChange);
     _loadCorePalette();
   }
 
@@ -51,6 +55,7 @@ class _PerliteFlowAppState extends State<PerliteFlowApp> {
   void dispose() {
     app.removeListener(_onAppChange);
     theme.removeListener(_onAppChange);
+    ui.removeListener(_onAppChange);
     super.dispose();
   }
 
@@ -101,7 +106,7 @@ class _PerliteFlowAppState extends State<PerliteFlowApp> {
       case AppPhase.onboarding:
         return LoginPage(app: app);
       case AppPhase.ready:
-        return HomePage(app: app, theme: theme);
+        return HomePage(app: app, theme: theme, ui: ui);
     }
   }
 }

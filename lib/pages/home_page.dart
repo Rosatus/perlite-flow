@@ -5,10 +5,12 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/file_node.dart';
+import '../models/nav_tab.dart';
 import '../models/search_result.dart';
 import '../services/perlite_client.dart';
 import '../state/app_state.dart';
 import '../state/theme_state.dart';
+import '../state/ui_state.dart';
 import '../widgets/file_tree.dart';
 import '../widgets/note_webview.dart';
 import '../widgets/search_excerpt_text.dart';
@@ -22,7 +24,13 @@ import 'settings_page.dart';
 class HomePage extends StatefulWidget {
   final AppState app;
   final ThemeState theme;
-  const HomePage({super.key, required this.app, required this.theme});
+  final UiState ui;
+  const HomePage({
+    super.key,
+    required this.app,
+    required this.theme,
+    required this.ui,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -54,9 +62,21 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _tab = widget.ui.defaultIndex;
     _loadTree();
     _searchCtrl.addListener(_onQueryChanged);
+    // If home is the default landing tab, start fetching it now so it
+    // doesn't flash a spinner on first paint.
+    if (_currentTab == NavTab.home) {
+      _homeRequested = true;
+      _loadHome();
+    }
   }
+
+  NavTab get _currentTab =>
+      widget.ui.tabs.isEmpty
+          ? NavTab.home
+          : widget.ui.tabs[_tab.clamp(0, widget.ui.tabs.length - 1)];
 
   @override
   void dispose() {
@@ -110,11 +130,11 @@ class _HomePageState extends State<HomePage> {
 
   void _onTab(int i) {
     setState(() => _tab = i);
-    if (i == 1 && !_homeRequested) {
+    if (_currentTab == NavTab.home && !_homeRequested) {
       _homeRequested = true;
       _loadHome();
     }
-    if (i == 2) {
+    if (_currentTab == NavTab.search) {
       // Focus search field only after the frame so the keyboard does not
       // fight the tab transition.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -205,49 +225,46 @@ class _HomePageState extends State<HomePage> {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) =>
-                    SettingsPage(app: widget.app, theme: widget.theme),
+                    SettingsPage(
+                        app: widget.app,
+                        theme: widget.theme,
+                        ui: widget.ui),
               ),
             ),
           ),
         ],
       ),
       body: IndexedStack(
-        index: _tab,
+        index: _tab.clamp(0, widget.ui.tabs.length - 1),
         children: [
-          _buildTreeTab(),
-          _buildHomeTab(),
-          _buildSearchTab(),
+          for (final t in widget.ui.tabs)
+            switch (t) {
+              NavTab.notes => _buildTreeTab(),
+              NavTab.home => _buildHomeTab(),
+              NavTab.search => _buildSearchTab(),
+            },
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
+        selectedIndex: _tab.clamp(0, widget.ui.tabs.length - 1),
         onDestinationSelected: _onTab,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Symbols.folder_open),
-            selectedIcon: Icon(Symbols.folder_open, fill: 1),
-            label: '笔记',
-          ),
-          NavigationDestination(
-            icon: Icon(Symbols.home),
-            selectedIcon: Icon(Symbols.home, fill: 1),
-            label: '首页',
-          ),
-          NavigationDestination(
-            icon: Icon(Symbols.search),
-            selectedIcon: Icon(Symbols.search, fill: 1),
-            label: '搜索',
-          ),
+        destinations: [
+          for (final t in widget.ui.tabs)
+            NavigationDestination(
+              icon: Icon(t.icon),
+              selectedIcon: Icon(t.selectedIcon, fill: 1),
+              label: t.label,
+            ),
         ],
       ),
     );
   }
 
   VoidCallback get _onRefreshForTab {
-    return switch (_tab) {
-      0 => _loadTree,
-      1 => _loadHome,
-      _ => () {
+    return switch (_currentTab) {
+      NavTab.notes => _loadTree,
+      NavTab.home => _loadHome,
+      NavTab.search => () {
           _searchCtrl.clear();
           _runSearch();
         },

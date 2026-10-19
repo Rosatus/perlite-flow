@@ -2,16 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../models/server_profile.dart';
+import '../models/nav_tab.dart';
 import '../services/note_cache.dart';
 import '../state/app_state.dart';
 import '../state/theme_state.dart';
+import '../state/ui_state.dart';
 import 'login_page.dart';
 
 class SettingsPage extends StatefulWidget {
   final AppState app;
   final ThemeState theme;
+  final UiState ui;
 
-  const SettingsPage({super.key, required this.app, required this.theme});
+  const SettingsPage({
+    super.key,
+    required this.app,
+    required this.theme,
+    required this.ui,
+  });
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -278,6 +286,18 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const Divider(),
+          const _SectionHeader('导航'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(
+              '长按拖动调整顺序；勾选控制显示。打开应用时默认进入所选标签。',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+          _NavTabEditor(ui: widget.ui),
+          const Divider(),
           const _SectionHeader('存储'),
           ListTile(
             leading: const Icon(Symbols.database),
@@ -325,6 +345,113 @@ class _SectionHeader extends StatelessWidget {
           fontSize: 13,
         ),
       ),
+    );
+  }
+}
+
+/// Reorderable tab list — users pick which tabs show up in the bottom
+/// nav, drag to reorder, and pick the launch tab.
+class _NavTabEditor extends StatelessWidget {
+  final UiState ui;
+  const _NavTabEditor({required this.ui});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    // All three tabs, in the user's chosen order, then any hidden ones
+    // appended so the toggle remains reachable.
+    final visible = ui.tabs;
+    final hidden = NavTab.values.where((t) => !visible.contains(t)).toList();
+    final all = [...visible, ...hidden];
+    return Column(
+      children: [
+        for (final t in all)
+          Builder(builder: (context) {
+            final isVisible = visible.contains(t);
+            final isDefault = ui.defaultTab == t;
+            final idx = isVisible ? visible.indexOf(t) : -1;
+            return ListTile(
+              dense: true,
+              leading: Checkbox(
+                value: isVisible,
+                onChanged: all.length - hidden.length > 1 || !isVisible
+                    ? (v) => ui.setTabVisible(t, v ?? false)
+                    : null,
+              ),
+              title: Row(
+                children: [
+                  Icon(t.icon, size: 18, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Text(t.label),
+                  if (isDefault) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '默认',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: cs.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              subtitle: isVisible
+                  ? Text('位置 ${idx + 1} / ${visible.length}',
+                      style: const TextStyle(fontSize: 11))
+                  : const Text('已隐藏', style: TextStyle(fontSize: 11)),
+              trailing: isVisible
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Symbols.arrow_upward, size: 18),
+                          tooltip: '上移',
+                          onPressed: idx > 0
+                              ? () {
+                                  final next = List<NavTab>.of(visible);
+                                  next.removeAt(idx);
+                                  next.insert(idx - 1, t);
+                                  ui.setOrder(next);
+                                }
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Symbols.arrow_downward, size: 18),
+                          tooltip: '下移',
+                          onPressed: idx < visible.length - 1
+                              ? () {
+                                  final next = List<NavTab>.of(visible);
+                                  next.removeAt(idx);
+                                  next.insert(idx + 1, t);
+                                  ui.setOrder(next);
+                                }
+                              : null,
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            isDefault ? Symbols.star : Symbols.star,
+                            size: 18,
+                            fill: isDefault ? 1 : 0,
+                            color: isDefault ? cs.primary : null,
+                          ),
+                          tooltip: '设为默认',
+                          onPressed:
+                              isDefault ? null : () => ui.setDefault(t),
+                        ),
+                      ],
+                    )
+                  : null,
+            );
+          }),
+      ],
     );
   }
 }
