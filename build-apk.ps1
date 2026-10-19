@@ -1,0 +1,43 @@
+# Build a signed release APK of Perlite Flow.
+#
+# This machine's JDK 17+/21 breaks Gradle daemon NIO pipes under
+# Windows AF_UNIX (a third-party socket filter rejects loopback
+# connects into $env:TEMP). We work around it by:
+#   1. Pointing TEMP/TMP at a project-local dir while Gradle runs.
+#   2. Using Temurin JDK 21 (Pipe.open() falls back to a normal
+#      TCP loopback when AF_UNIX is unavailable).
+#
+# The signing key lives in android/app/release.keystore and the
+# password in android/key.properties (both gitignored).
+
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$tmp  = Join-Path $root 'android\.unix-tmp'
+New-Item -ItemType Directory -Force $tmp | Out-Null
+
+# Prefer Temurin 21; fall back to Android Studio's JBR or JAVA_HOME.
+$jdk = @(
+    'C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot',
+    'C:\Program Files\Android\Android Studio\jbr',
+    $env:JAVA_HOME
+) | Where-Object { $_ -and (Test-Path "$_\bin\java.exe") } | Select-Object -First 1
+
+if (-not $jdk) { throw 'No JDK found. Install Eclipse Temurin 21 or Android Studio.' }
+
+$env:JAVA_HOME = $jdk
+$env:TEMP     = $tmp
+$env:TMP      = $tmp
+$env:GRADLE_OPTS = '-Djdk.io.pipesUseUnixDomainSockets=false'
+
+Write-Host "JAVA_HOME = $jdk" -ForegroundColor Cyan
+Write-Host "TEMP      = $tmp" -ForegroundColor Cyan
+
+Set-Location $root
+$flutter = 'C:\code\sdk\flutter\bin\flutter.bat'
+& $flutter config --jdk-dir=$jdk | Out-Null
+& $flutter build apk --release @args
+
+Write-Host ''
+Write-Host 'APK:' -ForegroundColor Green
+Get-ChildItem "$root\build\app\outputs\apk\release\app-release.apk" |
+    Select-Object Name, @{N='MB';E={[math]::Round($_.Length/1MB,1)}}, LastWriteTime
