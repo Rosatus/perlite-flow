@@ -52,12 +52,12 @@ class NoteWebView extends StatefulWidget {
   /* Fonts bundled with the app: latin goes to JBM, CJK falls to WenKai. */
   @font-face {
     font-family: 'JetBrains Mono';
-    src: url('https://appassets.androidplatform.net/assets/fonts/JetBrainsMono-Regular.ttf');
+    src: url('https://appassets.androidplatform.net/flutter_assets/assets/fonts/JetBrainsMono-Regular.ttf');
     font-weight: 400;
   }
   @font-face {
     font-family: 'LXGW WenKai';
-    src: url('https://appassets.androidplatform.net/assets/fonts/LXGWWenKai-Regular.ttf');
+    src: url('https://appassets.androidplatform.net/flutter_assets/assets/fonts/LXGWWenKai-Regular.ttf');
     font-weight: 400;
   }
   body {
@@ -179,6 +179,14 @@ class _NoteWebViewState extends State<NoteWebView> {
         displayZoomControls: false,
         mediaPlaybackRequiresUserGesture: false,
         transparentBackground: true,
+        // Route https://appassets.androidplatform.net/flutter_assets/...
+        // through Android's AssetManager — that's where Flutter packs
+        // pubspec assets into the APK.
+        webViewAssetLoader: WebViewAssetLoader(
+          pathHandlers: [
+            AssetsPathHandler(path: '/flutter_assets/'),
+          ],
+        ),
       ),
       onWebViewCreated: (controller) {
         _controller = controller;
