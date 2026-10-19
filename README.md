@@ -2,7 +2,7 @@
 
 A third-party Android client for [Perlite](https://github.com/secure-77/Perlite) — the self-hosted, web-based Obsidian vault viewer. Built with Flutter, Material 3, and zero server-side changes.
 
-![Login](screenshot-login.png)
+![Login](docs/screenshot-login.png)
 
 ## What it does
 
