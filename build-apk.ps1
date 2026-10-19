@@ -33,9 +33,22 @@ Write-Host "JAVA_HOME = $jdk" -ForegroundColor Cyan
 Write-Host "TEMP      = $tmp" -ForegroundColor Cyan
 
 Set-Location $root
+
+# Auto-bump build number so every install is a real update.
+# Read `version: X.Y.Z+N` from pubspec.yaml, replace N with the
+# current Unix-time-mod-1M so reinstalling the APK never silently
+# no-ops. versionName stays semver.
+$pubspec = Get-Content "$root\pubspec.yaml" -Raw
+if ($pubspec -match 'version:\s*(\d+\.\d+\.\d+)\+(\d+)') {
+    $semver = $Matches[1]
+    $buildNo = [int]([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() % 1000000)
+    Write-Host "versionName = $semver, versionCode = $buildNo" -ForegroundColor Cyan
+    $env:PERLITE_BUILD_NUMBER = $buildNo
+}
+
 $flutter = 'C:\code\sdk\flutter\bin\flutter.bat'
 & $flutter config --jdk-dir=$jdk | Out-Null
-& $flutter build apk --release @args
+& $flutter build apk --release --build-number $env:PERLITE_BUILD_NUMBER @args
 
 Write-Host ''
 Write-Host 'APK:' -ForegroundColor Green
