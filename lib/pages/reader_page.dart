@@ -7,6 +7,7 @@ import 'dart:async';
 
 import '../services/perlite_client.dart';
 import '../state/app_state.dart';
+import '../state/theme_state.dart';
 import '../widgets/note_webview.dart';
 
 /// Reader: cache-first, network-refresh-in-background, with reader
@@ -16,9 +17,17 @@ class ReaderPage extends StatefulWidget {
   final AppState app;
   final String notePath;
   final String? title;
+  /// App-wide font choice; pushed through to the WebView so CJK/Latin
+  /// glyphs resolve to the same family the chrome uses.
+  final ThemeState theme;
 
-  const ReaderPage(
-      {super.key, required this.app, required this.notePath, this.title});
+  const ReaderPage({
+    super.key,
+    required this.app,
+    required this.notePath,
+    required this.theme,
+    this.title,
+  });
 
   @override
   State<ReaderPage> createState() => _ReaderPageState();
@@ -116,7 +125,11 @@ class _ReaderPageState extends State<ReaderPage> {
   void _openNote(String path) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ReaderPage(app: widget.app, notePath: path),
+        builder: (_) => ReaderPage(
+          app: widget.app,
+          notePath: path,
+          theme: widget.theme,
+        ),
       ),
     );
   }
@@ -262,6 +275,7 @@ class _ReaderPageState extends State<ReaderPage> {
           basicAuthUser: widget.app.active?.username,
           basicAuthPassword: pwd,
           fontScale: _fontScale,
+          readerFont: widget.theme.effectiveChoice?.family ?? 'system',
           onOpenNote: _openNote,
           onOpenExternal: _openExternal,
           onControllerReady: (ctrl) {

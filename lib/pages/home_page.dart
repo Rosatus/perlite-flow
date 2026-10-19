@@ -187,6 +187,7 @@ class _HomePageState extends State<HomePage> {
         builder: (_) => ReaderPage(
           app: widget.app,
           notePath: notePath,
+          theme: widget.theme,
           title: title,
         ),
       ),
@@ -343,6 +344,7 @@ class _HomePageState extends State<HomePage> {
           baseUrl: widget.app.active?.baseUrl ?? '',
           basicAuthUser: widget.app.active?.username,
           basicAuthPassword: snap.data,
+          readerFont: widget.theme.effectiveChoice?.family ?? 'system',
           onOpenNote: _openNote,
           onOpenExternal: _openExternal,
         );

@@ -24,6 +24,15 @@ class NoteWebView extends StatefulWidget {
   /// scroll progress + jump-to-top via the controller.
   final void Function(InAppWebViewController controller)? onControllerReady;
 
+  /// Reader body font — app font choice, applied via @font-face in the
+  /// generated HTML when it isn't the system sentinel. Empty = system.
+  final String readerFont;
+
+  /// Perlite mounts the vault under `/Notes/` on the web root, so any
+  /// vault-relative asset (fonts, images) has to be prefixed when we
+  /// build absolute URLs for the WebView.
+  String get _fontsBase => '$baseUrl/Notes/System/fonts';
+
   const NoteWebView({
     super.key,
     required this.html,
@@ -34,6 +43,7 @@ class NoteWebView extends StatefulWidget {
     this.onOpenNote,
     this.onOpenExternal,
     this.onControllerReady,
+    this.readerFont = 'system',
   });
 
   static const _shellTemplate = '''
@@ -44,8 +54,45 @@ class NoteWebView extends StatefulWidget {
 <style>
   :root { color-scheme: light dark; }
   html { -webkit-text-size-adjust: 100%; }
+  /* Latin glyphs go to the Latin font; CJK falls through to WenKai. */
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('__FONTS__/JetBrainsMono-Regular.ttf');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('__FONTS__/JetBrainsMono-Medium.ttf');
+    font-weight: 500;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('__FONTS__/JetBrainsMono-Bold.ttf');
+    font-weight: 700;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('__FONTS__/JetBrainsMono-Italic.ttf');
+    font-weight: 400;
+    font-style: italic;
+  }
+  @font-face {
+    font-family: 'LXGW WenKai';
+    src: url('__FONTS__/LXGWWenKai-Regular.ttf');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'LXGW WenKai';
+    src: url('__FONTS__/LXGWWenKai-Medium.ttf');
+    font-weight: 500;
+  }
+  @font-face {
+    font-family: 'LXGW WenKai';
+    src: url('__FONTS__/LXGWWenKaiGBScreen.ttf');
+    font-weight: 700;
+  }
   body {
-    font-family: -apple-system, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+    font-family: __BODY_FONT__, "LXGW WenKai", "PingFang SC", "Noto Sans SC", sans-serif;
     line-height: 1.7;
     padding: 16px 20px 48px;
     margin: 0;
@@ -59,7 +106,7 @@ class NoteWebView extends StatefulWidget {
     border-radius: 8px;
     font-size: 0.86em;
   }
-  code { font-family: "JetBrains Mono", "Consolas", monospace; }
+  code { font-family: "JetBrains Mono", "LXGW WenKai Mono GB Screen", "Consolas", monospace; }
   a { word-break: break-all; }
   blockquote {
     margin: 0.8em 0;
@@ -106,8 +153,32 @@ document.addEventListener('click', function(e) {
 
   String _wrapHtml() {
     final px = (16 * fontScale).clamp(10.0, 28.0).toStringAsFixed(1);
+    // Resolve the body font stack. 'system' becomes the platform stack;
+    // Google Fonts families are quoted and tried before the WenKai
+    // fallback so they win for Latin glyphs when the device has them.
+    String bodyFont;
+    switch (readerFont) {
+      case 'system':
+        bodyFont =
+            '"JetBrains Mono", -apple-system, "Segoe UI", "PingFang SC"';
+        break;
+      case 'LXGW WenKai':
+        // Simplified WenKai needs to lead for CJK; JBM handles Latin.
+        bodyFont = '"JetBrains Mono", "LXGW WenKai"';
+        break;
+      case 'Noto Serif SC':
+      case 'Noto Serif TC':
+        bodyFont =
+            '"JetBrains Mono", "$readerFont", "LXGW WenKai"';
+        break;
+      default:
+        bodyFont =
+            '"JetBrains Mono", "$readerFont", "LXGW WenKai", "PingFang SC"';
+    }
     return _shellTemplate
         .replaceFirst('__FONTSIZE__', px)
+        .replaceAll('__FONTS__', _fontsBase)
+        .replaceFirst('__BODY_FONT__', bodyFont)
         .replaceFirst('__CONTENT__', html);
   }
 
