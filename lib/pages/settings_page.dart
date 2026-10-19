@@ -167,12 +167,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// Returns a preview style for a font choice. Null when the family isn't
-  /// resolvable via Google Fonts or isn't bundled locally.
+  /// resolvable via Google Fonts or isn't declared locally.
   TextStyle? _previewStyle(FontChoice c) {
     final family = c.family;
     if (family == null) return null;
-    // WenKai is fetched in the WebView via @font-face — previewing here
-    // needs a local fallback, so render the picker row in the app font.
+    // WenKai is a bundled asset font — render the preview directly.
     if (family == 'LXGW WenKai') {
       return TextStyle(fontFamily: family);
     }

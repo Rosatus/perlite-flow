@@ -107,9 +107,8 @@ class ThemeState extends ChangeNotifier {
     ).textTheme;
     final family = effectiveFontFamily;
     if (family == null) return base;
-    // WenKai is fetched by the WebView via @font-face and isn't in the
-    // google_fonts map, so asking for a TextTheme would throw — apply it
-    // directly. Google Fonts names go through the package to lazy-load.
+    // WenKai is bundled as an asset font — `fontFamily:` resolves directly
+    // via the declared family name without going through google_fonts.
     if (family == 'LXGW WenKai') {
       return base.apply(fontFamily: family);
     }
@@ -131,8 +130,8 @@ class FontChoice {
   final String id;
   /// Human-readable label shown in the settings list.
   final String label;
-  /// Family name — bundled name when `bundled`, otherwise Google Fonts.
-  /// Null means "system default".
+  /// Family name — declared font family in pubspec, or a Google Fonts
+  /// name. Null means "system default".
   final String? family;
   const FontChoice({
     required this.id,
