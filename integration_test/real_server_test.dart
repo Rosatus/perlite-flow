@@ -16,9 +16,16 @@ import 'package:perlite_flow/services/perlite_client.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  const baseUrl = 'https://ob.rosata.cn';
-  const user = 'rosatus';
-  const pass = '79601522';
+  const baseUrl = String.fromEnvironment(
+    'PERLITE_URL',
+    defaultValue: 'https://ob.rosata.cn',
+  );
+  const user = String.fromEnvironment('PERLITE_USER');
+  const pass = String.fromEnvironment('PERLITE_PASSWORD');
+  final host = Uri.parse(baseUrl).host;
+  final skipReason = user.isEmpty || pass.isEmpty
+      ? 'Set PERLITE_USER and PERLITE_PASSWORD with --dart-define.'
+      : null;
 
   PerliteClient buildClient() => PerliteClient(
         baseUrl: baseUrl,
@@ -27,15 +34,15 @@ void main() {
         timeout: const Duration(seconds: 20),
       );
 
-  group('live Perlite @ ob.rosata.cn', () {
+  group('live Perlite @ $host', () {
     test('pre-flight: ensure netd is ready before Dio calls', () async {
       // Emulator cold-boot: netd may not have bound the DNS resolver
       // to this app's network yet. Force a warmup socket to wake it.
-      final probe = await InternetAddress.lookup('ob.rosata.cn')
+      final probe = await InternetAddress.lookup(host)
           .timeout(const Duration(seconds: 10));
       // ignore: avoid_print
       print('warmup resolved ${probe.length} addrs');
-      await Socket.connect('ob.rosata.cn', 443,
+      await Socket.connect(host, 443,
               timeout: const Duration(seconds: 10))
           .then((s) => s.close());
       // ignore: avoid_print
@@ -132,5 +139,5 @@ void main() {
         throwsA(isA<PerliteAuthException>()),
       );
     });
-  });
+  }, skip: skipReason);
 }

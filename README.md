@@ -51,7 +51,7 @@ storeFile=release.keystore
 
 ```sh
 flutter test                                        # unit + parsing tests
-flutter test integration_test\real_server_test.dart # live test against real vault
+flutter test integration_test\real_server_test.dart --dart-define=PERLITE_USER=... --dart-define=PERLITE_PASSWORD=...
 ```
 
 The `test/real_*.html` fixtures are snapshots of a real vault's index/search page — they're `.gitignore`d because they contain user note titles. To regenerate:

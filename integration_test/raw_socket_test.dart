@@ -10,14 +10,21 @@ import 'package:integration_test/integration_test.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  const baseUrl = String.fromEnvironment(
+    'PERLITE_URL',
+    defaultValue: 'https://ob.rosata.cn',
+  );
+  const user = String.fromEnvironment('PERLITE_USER');
+  const pass = String.fromEnvironment('PERLITE_PASSWORD');
+  final host = Uri.parse(baseUrl).host;
 
   test('raw Dart InternetAddress.lookup resolves a real hostname',
       () async {
     try {
-      final addrs = await InternetAddress.lookup('ob.rosata.cn')
+      final addrs = await InternetAddress.lookup(host)
           .timeout(const Duration(seconds: 10));
       // ignore: avoid_print
-      print('ob.rosata.cn -> ${addrs.map((a) => a.address).toList()}');
+      print('$host -> ${addrs.map((a) => a.address).toList()}');
       expect(addrs, isNotEmpty);
     } catch (e) {
       // ignore: avoid_print
@@ -28,7 +35,7 @@ void main() {
 
   test('raw Socket connect to https port works', () async {
     try {
-      final sock = await Socket.connect('ob.rosata.cn', 443,
+      final sock = await Socket.connect(host, 443,
               timeout: const Duration(seconds: 10))
           .timeout(const Duration(seconds: 10));
       // ignore: avoid_print
@@ -46,10 +53,12 @@ void main() {
     try {
       final client = HttpClient();
       final req = await client
-          .getUrl(Uri.parse('https://ob.rosata.cn/'))
+          .getUrl(Uri.parse(baseUrl).resolve('/'))
           .timeout(const Duration(seconds: 15));
-      req.headers.add('Authorization',
-          'Basic ${base64Encode(utf8.encode('rosatus:79601522'))}');
+      if (user.isNotEmpty) {
+        req.headers.add('Authorization',
+            'Basic ${base64Encode(utf8.encode('$user:$pass'))}');
+      }
       final res = await req.close().timeout(const Duration(seconds: 15));
       // ignore: avoid_print
       print('https GET / -> ${res.statusCode}');
