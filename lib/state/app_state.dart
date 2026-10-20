@@ -61,8 +61,16 @@ class AppState extends ChangeNotifier {
     String? name,
   }) async {
     final normalized = normalizeBaseUrl(baseUrl);
+    // Reconnecting to a known server/user should update its profile, not
+    // append a duplicate entry.
+    final existingId =
+        profileId ??
+        profiles
+            .where((p) => p.baseUrl == normalized && p.username == username)
+            .map((p) => p.id)
+            .firstOrNull;
     final profile = ServerProfile(
-      id: profileId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id: existingId ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: name ?? Uri.parse(normalized).host,
       baseUrl: normalized,
       username: username,
