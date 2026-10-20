@@ -41,15 +41,19 @@ flutter run -d emulator-5554     # debug build
 2. Plumb it through `app_state.dart`. Keep widget code dumb — state belongs
    in `AppState` / `ThemeState`, not inside widgets.
 3. For UI work, run both light and dark mode at least once.
+4. Put user-facing text in `lib/l10n/app_en.arb`, then add Chinese and
+   Japanese translations in `app_zh.arb` and `app_ja.arb`.
 
 ## Testing against a real server
 
-`integration_test/real_server_test.dart` exercises the full Dio → parse →
-model pipeline against a live vault. It currently hardcodes
-`https://ob.rosata.cn` — substitute your own before running:
+`integration_test/real_server_test.dart` exercises the full Dio -> parse ->
+model pipeline against a live vault. Pass the server through dart defines:
 
 ```sh
-flutter test integration_test\real_server_test.dart -d <device>
+flutter test integration_test\real_server_test.dart -d <device> `
+  --dart-define=PERLITE_URL=https://notes.example.com `
+  --dart-define=PERLITE_USER=... `
+  --dart-define=PERLITE_PASSWORD=...
 ```
 
 If the emulator can't resolve DNS, restart it with `-dns-server 223.5.5.5,8.8.8.8`
