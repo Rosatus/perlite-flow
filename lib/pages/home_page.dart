@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/l10n.dart';
 import '../models/file_node.dart';
 import '../models/nav_tab.dart';
 import '../models/search_result.dart';
@@ -42,17 +43,17 @@ class _HomePageState extends State<HomePage> {
 
   List<FileNode> _tree = [];
   bool _treeLoading = true;
-  String? _treeError;
+  Object? _treeError;
 
   List<SearchResultGroup> _results = [];
   bool _searching = false;
-  String? _searchError;
+  Object? _searchError;
   Timer? _debounce;
   int _searchSeq = 0;
 
   String? _homeHtml;
   bool _homeLoading = false;
-  String? _homeError;
+  Object? _homeError;
   bool _homeRequested = false;
 
   int _tab = 0;
@@ -73,10 +74,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  NavTab get _currentTab =>
-      widget.ui.tabs.isEmpty
-          ? NavTab.home
-          : widget.ui.tabs[_tab.clamp(0, widget.ui.tabs.length - 1)];
+  NavTab get _currentTab => widget.ui.tabs.isEmpty
+      ? NavTab.home
+      : widget.ui.tabs[_tab.clamp(0, widget.ui.tabs.length - 1)];
 
   @override
   void dispose() {
@@ -101,7 +101,7 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _treeError = e.toString();
+        _treeError = e;
         _treeLoading = false;
       });
     }
@@ -122,7 +122,7 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _homeError = e.toString();
+        _homeError = e;
         _homeLoading = false;
       });
     }
@@ -175,7 +175,7 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       if (!mounted || seq != _searchSeq) return;
       setState(() {
-        _searchError = e.toString();
+        _searchError = e;
         _searching = false;
       });
     }
@@ -197,8 +197,10 @@ class _HomePageState extends State<HomePage> {
   void _openAttachment(FileNode node) {
     final url = node.downloadUrl;
     if (url == null) return;
-    launchUrl(Uri.parse(_client.resolveUrl(url)),
-        mode: LaunchMode.externalApplication);
+    launchUrl(
+      Uri.parse(_client.resolveUrl(url)),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   @override
@@ -212,29 +214,26 @@ class _HomePageState extends State<HomePage> {
             Icon(Symbols.flowsheet, size: 22, color: cs.primary),
             const SizedBox(width: 10),
             Flexible(
-              child: Text(
-                _appBarTitle,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(_appBarTitle, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: '刷新',
+            tooltip: context.l10n.actionRefresh,
             icon: const Icon(Symbols.refresh),
             onPressed: _onRefreshForTab,
           ),
           IconButton(
-            tooltip: '设置',
+            tooltip: context.l10n.actionSettings,
             icon: const Icon(Symbols.settings),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) =>
-                    SettingsPage(
-                        app: widget.app,
-                        theme: widget.theme,
-                        ui: widget.ui),
+                builder: (_) => SettingsPage(
+                  app: widget.app,
+                  theme: widget.theme,
+                  ui: widget.ui,
+                ),
               ),
             ),
           ),
@@ -261,7 +260,7 @@ class _HomePageState extends State<HomePage> {
             NavigationDestination(
               icon: Icon(t.icon),
               selectedIcon: Icon(t.selectedIcon, fill: 1),
-              label: t.label,
+              label: t.label(context.l10n),
             ),
         ],
       ),
@@ -271,14 +270,14 @@ class _HomePageState extends State<HomePage> {
   String get _appBarTitle {
     switch (widget.ui.appBarTitleMode) {
       case AppBarTitleMode.app:
-        return 'Perlite Flow';
+        return context.l10n.appTitle;
       case AppBarTitleMode.profile:
         final p = widget.app.active;
-        if (p == null) return 'Perlite Flow';
+        if (p == null) return context.l10n.appTitle;
         return p.name.isEmpty ? p.baseUrl : p.name;
       case AppBarTitleMode.custom:
         final t = widget.ui.customTitle.trim();
-        return t.isEmpty ? 'Perlite Flow' : t;
+        return t.isEmpty ? context.l10n.appTitle : t;
     }
   }
 
@@ -287,9 +286,9 @@ class _HomePageState extends State<HomePage> {
       NavTab.notes => _loadTree,
       NavTab.home => _loadHome,
       NavTab.search => () {
-          _searchCtrl.clear();
-          _runSearch();
-        },
+        _searchCtrl.clear();
+        _runSearch();
+      },
     };
   }
 
@@ -300,13 +299,16 @@ class _HomePageState extends State<HomePage> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_treeError != null) {
-      return _ErrorPane(message: _treeError!, onRetry: _loadTree);
+      return _ErrorPane(
+        message: context.l10n.errorMessage(_treeError!),
+        onRetry: _loadTree,
+      );
     }
     if (_tree.isEmpty) {
       return _EmptyPane(
         icon: Symbols.folder_open,
-        title: '知识库是空的',
-        subtitle: '在 Perlite 服务端放入 Markdown 笔记后下拉刷新',
+        title: context.l10n.homeEmptyVaultTitle,
+        subtitle: context.l10n.homeEmptyVaultSubtitle,
       );
     }
     return RefreshIndicator(
@@ -326,14 +328,17 @@ class _HomePageState extends State<HomePage> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_homeError != null) {
-      return _ErrorPane(message: _homeError!, onRetry: _loadHome);
+      return _ErrorPane(
+        message: context.l10n.errorMessage(_homeError!),
+        onRetry: _loadHome,
+      );
     }
     final html = _homeHtml;
     if (html == null || html.trim().isEmpty) {
       return _EmptyPane(
         icon: Symbols.home,
-        title: '服务端没有配置首页笔记',
-        subtitle: '在 Perlite 设置里指定一篇笔记作为 index',
+        title: context.l10n.homeNoIndexTitle,
+        subtitle: context.l10n.homeNoIndexSubtitle,
       );
     }
     return FutureBuilder<String?>(
@@ -370,11 +375,12 @@ class _HomePageState extends State<HomePage> {
             focusNode: _searchFocus,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              hintText: '搜索笔记内容或文件名',
+              hintText: context.l10n.searchHint,
               prefixIcon: const Icon(Symbols.search),
               suffixIcon: inSearch
                   ? IconButton(
                       icon: const Icon(Symbols.close),
+                      tooltip: context.l10n.actionClear,
                       onPressed: () {
                         _searchCtrl.clear();
                         _runSearch();
@@ -387,8 +393,10 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(28),
                 borderSide: BorderSide.none,
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 14,
+              ),
             ),
             onSubmitted: (_) => _runSearch(),
           ),
@@ -403,21 +411,24 @@ class _HomePageState extends State<HomePage> {
     if (_searchCtrl.text.isEmpty) {
       return _EmptyPane(
         icon: Symbols.manage_search,
-        title: '输入关键词开始搜索',
-        subtitle: '支持 #tag、文件名、正文内容',
+        title: context.l10n.searchIdleTitle,
+        subtitle: context.l10n.searchIdleSubtitle,
       );
     }
     if (_searching && _results.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_searchError != null) {
-      return _ErrorPane(message: _searchError!, onRetry: _runSearch);
+      return _ErrorPane(
+        message: context.l10n.errorMessage(_searchError!),
+        onRetry: _runSearch,
+      );
     }
     if (_results.isEmpty) {
       return _EmptyPane(
         icon: Symbols.search_off,
-        title: '没有找到匹配',
-        subtitle: '尝试更短的关键词或检查 #tag 是否完整',
+        title: context.l10n.searchNoResultsTitle,
+        subtitle: context.l10n.searchNoResultsSubtitle,
       );
     }
     return ListView.separated(
@@ -442,9 +453,7 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   children: [
                     Icon(
-                      g.isFileNameMatch
-                          ? Symbols.draft
-                          : Symbols.find_in_page,
+                      g.isFileNameMatch ? Symbols.draft : Symbols.find_in_page,
                       size: 18,
                       color: cs.primary,
                     ),
@@ -460,7 +469,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     if (g.isFileNameMatch)
-                      _KindChip('文件名', cs),
+                      _KindChip(context.l10n.searchFileNameMatch, cs),
                   ],
                 ),
                 if (g.displayPath.contains('/'))
@@ -580,7 +589,7 @@ class _ErrorPane extends StatelessWidget {
             FilledButton.tonalIcon(
               onPressed: onRetry,
               icon: const Icon(Symbols.refresh, size: 18),
-              label: const Text('重试'),
+              label: Text(context.l10n.actionRetry),
             ),
           ],
         ),

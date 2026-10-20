@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'l10n/l10n.dart';
 import 'pages/home_page.dart';
 import 'pages/login_page.dart';
 import 'services/dynamic_color_service.dart';
@@ -65,7 +67,15 @@ class _PerliteFlowAppState extends State<PerliteFlowApp> {
     final dark = _resolveScheme(Brightness.dark);
 
     return MaterialApp(
-      title: 'Perlite Flow',
+      onGenerateTitle: (context) => context.l10n.appTitle,
+      locale: ui.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       debugShowCheckedModeBanner: false,
       themeMode: theme.mode,
       theme: ThemeData(
@@ -93,18 +103,13 @@ class _PerliteFlowAppState extends State<PerliteFlowApp> {
         brightness: brightness,
       );
     }
-    return ColorScheme.fromSeed(
-      seedColor: theme.seed,
-      brightness: brightness,
-    );
+    return ColorScheme.fromSeed(seedColor: theme.seed, brightness: brightness);
   }
 
   Widget _buildHome() {
     switch (app.phase) {
       case AppPhase.loading:
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case AppPhase.onboarding:
         return LoginPage(app: app);
       case AppPhase.ready:

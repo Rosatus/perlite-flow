@@ -17,11 +17,11 @@ class AppState extends ChangeNotifier {
   String? _activePassword;
   PerliteClient? client;
 
-  String? lastAuthError;
+  PerliteException? lastAuthError;
 
   AppState({CredentialStore? store, NoteCache? cache})
-      : store = store ?? CredentialStore(),
-        cache = cache ?? NoteCache();
+    : store = store ?? CredentialStore(),
+      cache = cache ?? NoteCache();
 
   Future<void> init() async {
     profiles = await store.loadProfiles();
@@ -51,7 +51,7 @@ class AppState extends ChangeNotifier {
 
   /// Validates credentials by probing `content.php?about` and, on success,
   /// persists the profile + optional password.
-  Future<String?> login({
+  Future<PerliteException?> login({
     required String baseUrl,
     required String username,
     required String password,

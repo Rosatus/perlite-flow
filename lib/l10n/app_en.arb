@@ -1,0 +1,181 @@
+{
+  "@@locale": "en",
+  "appTitle": "Perlite Flow",
+  "navHome": "Home",
+  "navSearch": "Search",
+  "navNotes": "Notes",
+  "actionRefresh": "Refresh",
+  "actionSettings": "Settings",
+  "actionRetry": "Retry",
+  "actionCancel": "Cancel",
+  "actionOk": "OK",
+  "actionDelete": "Delete",
+  "actionAdd": "Add",
+  "actionSignOut": "Sign out",
+  "actionClear": "Clear",
+  "homeEmptyVaultTitle": "Your vault is empty",
+  "homeEmptyVaultSubtitle": "Add Markdown notes on the Perlite server, then pull to refresh.",
+  "homeNoIndexTitle": "No home note configured",
+  "homeNoIndexSubtitle": "Choose a note as the index page in your Perlite settings.",
+  "searchHint": "Search note content or file names",
+  "searchIdleTitle": "Type to start searching",
+  "searchIdleSubtitle": "Supports #tags, file names, and note content.",
+  "searchNoResultsTitle": "No matches found",
+  "searchNoResultsSubtitle": "Try a shorter keyword or check that the #tag is complete.",
+  "searchFileNameMatch": "File name",
+  "loginSavedServers": "Saved servers",
+  "loginNameLabel": "Name (optional)",
+  "loginNameHint": "My notes",
+  "loginServerLabel": "Server URL",
+  "loginServerRequired": "Enter the server URL",
+  "loginUsernameLabel": "Username",
+  "loginUsernameHelper": "Leave empty if Basic Auth is not used",
+  "loginPasswordLabel": "Password",
+  "loginShowPassword": "Show password",
+  "loginHidePassword": "Hide password",
+  "loginSavePassword": "Save password",
+  "loginSavePasswordSubtitle": "Stored in Android secure storage",
+  "loginAutoLogin": "Sign in automatically",
+  "loginAutoLoginSubtitle": "Open the vault directly next time",
+  "loginConnecting": "Connecting…",
+  "loginSaveAndReconnect": "Save and reconnect",
+  "loginConnect": "Connect",
+  "loginPrivacyNote": "Credentials stay on this device and are never sent to third parties.",
+  "loginTagline": "Your Perlite vault, made for Android",
+  "readerSettings": "Reading settings",
+  "readerFontSize": "Font size",
+  "readerReload": "Reload",
+  "readerOpenExternal": "Open in browser",
+  "readerBackToTop": "Back to top",
+  "settingsTitle": "Settings",
+  "settingsSectionAccount": "Account",
+  "settingsNotConnected": "Not connected",
+  "settingsSignOutSubtitle": "Keep server profiles and end this session",
+  "settingsSignOutConfirmTitle": "Sign out?",
+  "settingsSignOutConfirmMessage": "Server profiles stay on this device so you can reconnect quickly.",
+  "settingsSavedServers": "Saved servers",
+  "settingsDeleteServerTitle": "Delete server?",
+  "settingsDeleteServerMessage": "This removes \"{name}\" and its saved password.",
+  "@settingsDeleteServerMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSectionAppearance": "Appearance",
+  "settingsLanguage": "Language",
+  "languageSystem": "System default",
+  "settingsDynamicColor": "Material You colors",
+  "settingsDynamicColorSubtitle": "Match your wallpaper colors (Android 12+)",
+  "settingsDarkMode": "Dark mode",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "settingsThemeColor": "Accent color",
+  "settingsThemeColorOverridden": "Accent color (Material You is active; presets are paused)",
+  "settingsFont": "Font",
+  "settingsChooseFont": "Choose font",
+  "fontSystem": "System default",
+  "fontLxgw": "LXGW WenKai",
+  "fontJetBrainsMono": "JetBrains Mono + LXGW WenKai",
+  "settingsSectionNavigation": "Navigation",
+  "settingsTopTitle": "Top bar title",
+  "settingsTitleModeRepo": "Vault",
+  "settingsTitleModeCustom": "Custom",
+  "settingsTitleFollowRepo": "Use current vault",
+  "settingsTitleFollowRepoNamed": "Use current vault ({name})",
+  "@settingsTitleFollowRepoNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsTitleCustomEmpty": "Custom text",
+  "settingsTitleCustomValue": "Custom: {text}",
+  "@settingsTitleCustomValue": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCustomTitleHint": "e.g. My knowledge base",
+  "settingsNavHelp": "Use the arrows to reorder tabs, the checkboxes to show or hide them, and the star to choose the launch tab.",
+  "navDefaultBadge": "Default",
+  "navPosition": "Position {index} of {total}",
+  "@navPosition": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "navHidden": "Hidden",
+  "navMoveUp": "Move up",
+  "navMoveDown": "Move down",
+  "navSetDefault": "Set as launch tab",
+  "settingsSectionStorage": "Storage",
+  "settingsNoteCache": "Note cache",
+  "settingsCacheUsage": "{used} used of {limit}",
+  "@settingsCacheUsage": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsClearCache": "Clear cache",
+  "settingsCacheCleared": "Cache cleared",
+  "settingsCacheLimit": "Cache limit",
+  "settingsCacheLimitDialogTitle": "Cache limit (MB)",
+  "settingsSectionAbout": "About",
+  "settingsAboutSubtitle": "Android client for Perlite · {version}",
+  "@settingsAboutSubtitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSourceCode": "Source code",
+  "errorUnauthorized": "Incorrect username or password (401)",
+  "errorForbidden": "Access denied (403)",
+  "errorNotFound": "The server returned 404. Check the URL.",
+  "errorDnsFailed": "Could not resolve the host name. Check the URL.",
+  "errorTlsFailed": "TLS handshake failed. Check the HTTPS certificate.",
+  "errorConnectionRefused": "Connection refused. The port may be closed or blocked by a firewall.",
+  "errorNetworkUnreachable": "Network unreachable. Check your network or proxy.",
+  "errorConnectionFailed": "Could not connect to the server: {detail}",
+  "@errorConnectionFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errorHttpStatus": "The server returned HTTP {code}",
+  "@errorHttpStatus": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "errorRequestFailed": "Request failed: {detail}",
+  "@errorRequestFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errorInvalidUrl": "Invalid URL"
+}

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../l10n/l10n.dart';
+
 class ThemeState extends ChangeNotifier {
   static const _modeKey = 'theme_mode';
   static const _seedKey = 'theme_seed';
@@ -10,6 +12,7 @@ class ThemeState extends ChangeNotifier {
   ThemeMode mode = ThemeMode.system;
   Color seed = const Color(0xFF00796B); // teal — calm reading accent
   bool useDynamicColor = true;
+
   /// Stable font choice id, or 'system' for the platform default.
   /// Every non-system choice is bundled in the APK.
   String fontFamily = 'system';
@@ -32,15 +35,10 @@ class ThemeState extends ChangeNotifier {
   /// Bundled font families. Keep this list in sync with pubspec.yaml and
   /// the reader's @font-face declarations; no font is downloaded at runtime.
   static const List<FontChoice> fontChoices = [
-    FontChoice(id: 'system', label: '系统默认', family: null),
-    FontChoice(
-      id: 'lxgw',
-      label: '霞鹜文楷 LXGW WenKai',
-      family: 'LXGW WenKai',
-    ),
+    FontChoice(id: 'system', family: null),
+    FontChoice(id: 'lxgw', family: 'LXGW WenKai'),
     FontChoice(
       id: 'jetbrainsMono',
-      label: 'JetBrains Mono + 霞鹜文楷',
       family: 'JetBrains Mono',
       fallback: ['LXGW WenKai'],
     ),
@@ -103,10 +101,7 @@ class ThemeState extends ChangeNotifier {
     final choice = effectiveChoice;
     final family = choice?.family;
     if (family == null) return base;
-    return base.apply(
-      fontFamily: family,
-      fontFamilyFallback: choice!.fallback,
-    );
+    return base.apply(fontFamily: family, fontFamilyFallback: choice!.fallback);
   }
 
   /// Resolves the family name of the currently selected choice. Null when
@@ -118,18 +113,23 @@ class ThemeState extends ChangeNotifier {
 class FontChoice {
   /// Stable id stored in SharedPreferences.
   final String id;
-  /// Human-readable label shown in the settings list.
-  final String label;
+
   /// Family name declared in pubspec. Null means "system default".
   final String? family;
+
   /// Bundled families used for glyphs missing from [family].
   final List<String> fallback;
   const FontChoice({
     required this.id,
-    required this.label,
     required this.family,
     this.fallback = const [],
   });
+
+  String label(AppLocalizations l10n) => switch (id) {
+    'lxgw' => l10n.fontLxgw,
+    'jetbrainsMono' => l10n.fontJetBrainsMono,
+    _ => l10n.fontSystem,
+  };
 
   TextStyle get previewStyle =>
       TextStyle(fontFamily: family, fontFamilyFallback: fallback);

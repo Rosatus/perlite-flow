@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../l10n/l10n.dart';
 import '../models/server_profile.dart';
 import '../services/perlite_client.dart';
 import '../state/app_state.dart';
@@ -43,7 +44,7 @@ class _LoginPageState extends State<LoginPage>
   /// Live URL probe state (debounced on-typing).
   Timer? _probeTimer;
   bool _probing = false;
-  String? _probeResult; // null => ok
+  PerliteException? _probeResult; // null => ok
   String _lastProbedUrl = '';
 
   late AnimationController _anim;
@@ -58,8 +59,10 @@ class _LoginPageState extends State<LoginPage>
       duration: const Duration(milliseconds: 600),
     );
     _fade = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
     _anim.forward();
 
     final p = widget.editing;
@@ -110,7 +113,7 @@ class _LoginPageState extends State<LoginPage>
     final url = AppState.normalizeBaseUrl(_urlCtrl.text);
     if (url.isEmpty || url == _lastProbedUrl) return;
     setState(() => _probing = true);
-    String? err;
+    PerliteException? err;
     try {
       final probe = PerliteClient(
         baseUrl: url,
@@ -120,7 +123,7 @@ class _LoginPageState extends State<LoginPage>
       );
       err = await probe.probe();
     } on FormatException {
-      err = 'URL 格式不正确';
+      err = const PerliteException(PerliteErrorKind.invalidUrl);
     }
     if (!mounted) return;
     setState(() {
@@ -148,7 +151,10 @@ class _LoginPageState extends State<LoginPage>
     setState(() => _connecting = false);
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(context.l10n.errorMessage(err)),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -189,7 +195,7 @@ class _LoginPageState extends State<LoginPage>
                       const SizedBox(height: 28),
                       if (profiles.isNotEmpty) ...[
                         Text(
-                          '已保存的服务器',
+                          context.l10n.loginSavedServers,
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
                         const SizedBox(height: 8),
@@ -201,7 +207,8 @@ class _LoginPageState extends State<LoginPage>
                               InputChip(
                                 avatar: const Icon(Symbols.dns, size: 18),
                                 label: Text(
-                                    p.name.isEmpty ? p.baseUrl : p.name),
+                                  p.name.isEmpty ? p.baseUrl : p.name,
+                                ),
                                 selected: widget.editing?.id == p.id,
                                 onSelected: (_) => _pickProfile(p),
                               ),
@@ -227,14 +234,13 @@ class _LoginPageState extends State<LoginPage>
                               children: [
                                 TextFormField(
                                   controller: _nameCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: '名称（可选）',
-                                    hintText: '我的笔记',
-                                    prefixIcon: Icon(Symbols.bookmark),
-                                    border: OutlineInputBorder(),
+                                  decoration: InputDecoration(
+                                    labelText: context.l10n.loginNameLabel,
+                                    hintText: context.l10n.loginNameHint,
+                                    prefixIcon: const Icon(Symbols.bookmark),
+                                    border: const OutlineInputBorder(),
                                   ),
-                                  textCapitalization:
-                                      TextCapitalization.words,
+                                  textCapitalization: TextCapitalization.words,
                                 ),
                                 const SizedBox(height: 14),
                                 TextFormField(
@@ -243,7 +249,7 @@ class _LoginPageState extends State<LoginPage>
                                   keyboardType: TextInputType.url,
                                   autocorrect: false,
                                   decoration: InputDecoration(
-                                    labelText: '服务器地址',
+                                    labelText: context.l10n.loginServerLabel,
                                     hintText: 'https://notes.example.com',
                                     prefixIcon: const Icon(Symbols.link),
                                     border: const OutlineInputBorder(),
@@ -251,12 +257,13 @@ class _LoginPageState extends State<LoginPage>
                                   ),
                                   validator: (v) {
                                     final t = v?.trim() ?? '';
-                                    if (t.isEmpty) return '请输入服务器地址';
-                                    final u =
-                                        AppState.normalizeBaseUrl(t);
+                                    if (t.isEmpty) {
+                                      return context.l10n.loginServerRequired;
+                                    }
+                                    final u = AppState.normalizeBaseUrl(t);
                                     final uri = Uri.tryParse(u);
                                     if (uri == null || uri.host.isEmpty) {
-                                      return 'URL 格式不正确';
+                                      return context.l10n.errorInvalidUrl;
                                     }
                                     return null;
                                   },
@@ -264,9 +271,11 @@ class _LoginPageState extends State<LoginPage>
                                 if (_probeResult != null)
                                   Padding(
                                     padding: const EdgeInsets.only(
-                                        top: 6, left: 4),
+                                      top: 6,
+                                      left: 4,
+                                    ),
                                     child: Text(
-                                      _probeResult!,
+                                      context.l10n.errorMessage(_probeResult!),
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: cs.error,
@@ -277,10 +286,12 @@ class _LoginPageState extends State<LoginPage>
                                 TextFormField(
                                   controller: _userCtrl,
                                   focusNode: _userFocus,
-                                  decoration: const InputDecoration(
-                                    labelText: '用户名（无 Basic Auth 可留空）',
-                                    prefixIcon: Icon(Symbols.person),
-                                    border: OutlineInputBorder(),
+                                  decoration: InputDecoration(
+                                    labelText: context.l10n.loginUsernameLabel,
+                                    helperText:
+                                        context.l10n.loginUsernameHelper,
+                                    prefixIcon: const Icon(Symbols.person),
+                                    border: const OutlineInputBorder(),
                                   ),
                                 ),
                                 const SizedBox(height: 14),
@@ -291,28 +302,32 @@ class _LoginPageState extends State<LoginPage>
                                   textInputAction: TextInputAction.done,
                                   onFieldSubmitted: (_) => _submit(),
                                   decoration: InputDecoration(
-                                    labelText: '密码',
+                                    labelText: context.l10n.loginPasswordLabel,
                                     prefixIcon: const Icon(Symbols.lock),
                                     border: const OutlineInputBorder(),
                                     suffixIcon: IconButton(
+                                      tooltip: _obscure
+                                          ? context.l10n.loginShowPassword
+                                          : context.l10n.loginHidePassword,
                                       icon: Icon(
                                         _obscure
                                             ? Symbols.visibility
                                             : Symbols.visibility_off,
                                       ),
-                                      onPressed: () => setState(
-                                          () => _obscure = !_obscure),
+                                      onPressed: () =>
+                                          setState(() => _obscure = !_obscure),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 CheckboxListTile(
                                   value: _savePassword,
-                                  onChanged: (v) => setState(
-                                      () => _savePassword = v ?? true),
-                                  title: const Text('保存密码'),
-                                  subtitle:
-                                      const Text('保存在系统安全存储中'),
+                                  onChanged: (v) =>
+                                      setState(() => _savePassword = v ?? true),
+                                  title: Text(context.l10n.loginSavePassword),
+                                  subtitle: Text(
+                                    context.l10n.loginSavePasswordSubtitle,
+                                  ),
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,
                                   controlAffinity:
@@ -320,11 +335,12 @@ class _LoginPageState extends State<LoginPage>
                                 ),
                                 CheckboxListTile(
                                   value: _autoLogin,
-                                  onChanged: (v) => setState(
-                                      () => _autoLogin = v ?? false),
-                                  title: const Text('自动登录'),
-                                  subtitle:
-                                      const Text('下次启动直接进入'),
+                                  onChanged: (v) =>
+                                      setState(() => _autoLogin = v ?? false),
+                                  title: Text(context.l10n.loginAutoLogin),
+                                  subtitle: Text(
+                                    context.l10n.loginAutoLoginSubtitle,
+                                  ),
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,
                                   controlAffinity:
@@ -332,30 +348,33 @@ class _LoginPageState extends State<LoginPage>
                                 ),
                                 const SizedBox(height: 16),
                                 FilledButton.icon(
-                                  onPressed:
-                                      _connecting ? null : _submit,
+                                  onPressed: _connecting ? null : _submit,
                                   icon: _connecting
                                       ? const SizedBox(
                                           width: 18,
                                           height: 18,
-                                          child:
-                                              CircularProgressIndicator(
-                                                  strokeWidth: 2),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
                                         )
-                                      : Icon(editing
-                                          ? Symbols.save
-                                          : Symbols.login),
-                                  label: Text(_connecting
-                                      ? '连接中…'
-                                      : editing
-                                          ? '保存并重连'
-                                          : '连接'),
+                                      : Icon(
+                                          editing
+                                              ? Symbols.save
+                                              : Symbols.login,
+                                        ),
+                                  label: Text(
+                                    _connecting
+                                        ? context.l10n.loginConnecting
+                                        : editing
+                                        ? context.l10n.loginSaveAndReconnect
+                                        : context.l10n.loginConnect,
+                                  ),
                                   style: FilledButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
+                                      vertical: 16,
+                                    ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                 ),
@@ -366,11 +385,9 @@ class _LoginPageState extends State<LoginPage>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '凭证只保存在本设备，不会上传到任何第三方服务',
+                        context.l10n.loginPrivacyNote,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
+                        style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: cs.onSurfaceVariant),
                       ),
                     ],
@@ -431,27 +448,20 @@ class _HeroMark extends StatelessWidget {
             ],
           ),
           padding: const EdgeInsets.all(8),
-          child: Image.asset(
-            'assets/logo.png',
-            fit: BoxFit.contain,
-          ),
+          child: Image.asset('assets/logo.png', fit: BoxFit.contain),
         ),
         const SizedBox(height: 16),
         Text(
-          'Perlite Flow',
+          context.l10n.appTitle,
           textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .headlineSmall
+          style: Theme.of(context).textTheme.headlineSmall
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
         Text(
-          '连接你的 Perlite 知识库',
+          context.l10n.loginTagline,
           textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
+          style: Theme.of(context).textTheme.bodyMedium
               ?.copyWith(color: cs.onSurfaceVariant),
         ),
       ],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/l10n.dart';
 import '../models/server_profile.dart';
 import '../models/nav_tab.dart';
 import '../services/note_cache.dart';
@@ -64,8 +66,9 @@ class _SettingsPageState extends State<SettingsPage> {
     await widget.app.cache.clear();
     await _loadCacheStats();
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('缓存已清理')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.settingsCacheCleared)));
   }
 
   Future<void> _editCacheLimit() async {
@@ -75,7 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final v = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('缓存上限 (MB)'),
+        title: Text(ctx.l10n.settingsCacheLimitDialogTitle),
         content: TextField(
           controller: ctrl,
           keyboardType: TextInputType.number,
@@ -84,12 +87,11 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(ctx.l10n.actionCancel),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(ctx, int.tryParse(ctrl.text.trim())),
-            child: const Text('确定'),
+            onPressed: () => Navigator.pop(ctx, int.tryParse(ctrl.text.trim())),
+            child: Text(ctx.l10n.actionOk),
           ),
         ],
       ),
@@ -103,24 +105,28 @@ class _SettingsPageState extends State<SettingsPage> {
   String get _appBarSubtitle {
     switch (widget.ui.appBarTitleMode) {
       case AppBarTitleMode.app:
-        return 'Perlite Flow';
+        return context.l10n.appTitle;
       case AppBarTitleMode.profile:
         final p = widget.app.active;
         return p == null
-            ? '跟随当前仓库'
-            : '跟随当前仓库（${p.name.isEmpty ? p.baseUrl : p.name}）';
+            ? context.l10n.settingsTitleFollowRepo
+            : context.l10n.settingsTitleFollowRepoNamed(
+                p.name.isEmpty ? p.baseUrl : p.name,
+              );
       case AppBarTitleMode.custom:
         final t = widget.ui.customTitle.trim();
-        return t.isEmpty ? '自定义文字' : '自定义：$t';
+        return t.isEmpty
+            ? context.l10n.settingsTitleCustomEmpty
+            : context.l10n.settingsTitleCustomValue(t);
     }
   }
 
   String get _fontLabel {
     final id = widget.theme.fontFamily;
     for (final c in ThemeState.fontChoices) {
-      if (c.id == id) return c.label;
+      if (c.id == id) return c.label(context.l10n);
     }
-    return '系统默认';
+    return context.l10n.fontSystem;
   }
 
   Future<void> _editFont() async {
@@ -128,7 +134,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('选择字体'),
+        title: Text(ctx.l10n.settingsChooseFont),
         children: [
           for (final c in ThemeState.fontChoices)
             SimpleDialogOption(
@@ -147,7 +153,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      c.label,
+                      c.label(ctx.l10n),
                       style: c.family != null ? c.previewStyle : null,
                     ),
                   ),
@@ -171,28 +177,27 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('顶部标题'),
+          title: Text(ctx.l10n.settingsTopTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SegmentedButton<AppBarTitleMode>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: AppBarTitleMode.app,
-                    label: Text('Perlite Flow'),
+                    label: Text(ctx.l10n.appTitle),
                   ),
                   ButtonSegment(
                     value: AppBarTitleMode.profile,
-                    label: Text('跟随仓库'),
+                    label: Text(ctx.l10n.settingsTitleModeRepo),
                   ),
                   ButtonSegment(
                     value: AppBarTitleMode.custom,
-                    label: Text('自定义'),
+                    label: Text(ctx.l10n.settingsTitleModeCustom),
                   ),
                 ],
                 selected: {mode},
-                onSelectionChanged: (s) =>
-                    setLocal(() => mode = s.first),
+                onSelectionChanged: (s) => setLocal(() => mode = s.first),
               ),
               if (mode == AppBarTitleMode.custom)
                 Padding(
@@ -200,9 +205,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: TextField(
                     controller: ctrl,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      hintText: '例如：我的知识库',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: ctx.l10n.settingsCustomTitleHint,
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
@@ -212,11 +217,11 @@ class _SettingsPageState extends State<SettingsPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('取消'),
+              child: Text(ctx.l10n.actionCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, mode),
-              child: const Text('确定'),
+              child: Text(ctx.l10n.actionOk),
             ),
           ],
         ),
@@ -232,18 +237,20 @@ class _SettingsPageState extends State<SettingsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除服务器？'),
+        title: Text(ctx.l10n.settingsDeleteServerTitle),
         content: Text(
-          '将移除 "${p.name.isEmpty ? p.baseUrl : p.name}" 及其保存的密码。',
+          ctx.l10n.settingsDeleteServerMessage(
+            p.name.isEmpty ? p.baseUrl : p.name,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(ctx.l10n.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('删除'),
+            child: Text(ctx.l10n.actionDelete),
           ),
         ],
       ),
@@ -257,16 +264,19 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final active = widget.app.active;
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         children: [
-          const _SectionHeader('账户'),
+          _SectionHeader(l10n.settingsSectionAccount),
           ListTile(
             leading: const Icon(Symbols.dns),
-            title: Text(active?.name.isNotEmpty == true
-                ? active!.name
-                : active?.baseUrl ?? '未连接'),
+            title: Text(
+              active?.name.isNotEmpty == true
+                  ? active!.name
+                  : active?.baseUrl ?? l10n.settingsNotConnected,
+            ),
             subtitle: Text(active?.baseUrl ?? ''),
             trailing: const Icon(Symbols.edit),
             onTap: () => Navigator.of(context).push(
@@ -277,22 +287,22 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           ListTile(
             leading: const Icon(Symbols.logout),
-            title: const Text('退出登录'),
-            subtitle: const Text('保留服务器配置，清除会话'),
+            title: Text(l10n.actionSignOut),
+            subtitle: Text(l10n.settingsSignOutSubtitle),
             onTap: () async {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('退出登录？'),
-                  content: const Text('服务器配置保留在设备上，下次可快速重新连接。'),
+                  title: Text(ctx.l10n.settingsSignOutConfirmTitle),
+                  content: Text(ctx.l10n.settingsSignOutConfirmMessage),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('取消'),
+                      child: Text(ctx.l10n.actionCancel),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('退出'),
+                      child: Text(ctx.l10n.actionSignOut),
                     ),
                   ],
                 ),
@@ -310,12 +320,14 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
               child: Row(
                 children: [
-                  Text('已保存的服务器',
-                      style: Theme.of(context).textTheme.labelLarge),
+                  Text(
+                    l10n.settingsSavedServers,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
                   const Spacer(),
                   TextButton.icon(
                     icon: const Icon(Symbols.add, size: 18),
-                    label: const Text('新增'),
+                    label: Text(l10n.actionAdd),
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => LoginPage(app: widget.app),
@@ -337,42 +349,63 @@ class _SettingsPageState extends State<SettingsPage> {
                     ? const Icon(Symbols.check_circle, size: 18)
                     : IconButton(
                         icon: const Icon(Symbols.delete, size: 18),
-                        tooltip: '删除',
+                        tooltip: l10n.actionDelete,
                         onPressed: () => _deleteProfile(p),
                       ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        LoginPage(app: widget.app, editing: p),
+                    builder: (_) => LoginPage(app: widget.app, editing: p),
                   ),
                 ),
               ),
           ],
           const Divider(),
-          const _SectionHeader('外观'),
+          _SectionHeader(l10n.settingsSectionAppearance),
+          ListTile(
+            leading: const Icon(Symbols.language),
+            title: Text(l10n.settingsLanguage),
+            trailing: DropdownButton<String>(
+              value: widget.ui.locale?.languageCode ?? '',
+              underline: const SizedBox(),
+              onChanged: (code) => widget.ui.setLocale(
+                code == null || code.isEmpty ? null : Locale(code),
+              ),
+              items: [
+                DropdownMenuItem(value: '', child: Text(l10n.languageSystem)),
+                const DropdownMenuItem(value: 'en', child: Text('English')),
+                const DropdownMenuItem(value: 'zh', child: Text('简体中文')),
+                const DropdownMenuItem(value: 'ja', child: Text('日本語')),
+              ],
+            ),
+          ),
           if (widget.theme.dynamicColorAvailable)
             SwitchListTile(
               secondary: const Icon(Symbols.palette),
-              title: const Text('Material You 动态取色'),
-              subtitle: const Text('跟随系统壁纸主题色（Android 12+）'),
+              title: Text(l10n.settingsDynamicColor),
+              subtitle: Text(l10n.settingsDynamicColorSubtitle),
               value: widget.theme.useDynamicColor,
               onChanged: widget.theme.setDynamicColor,
             ),
           ListTile(
             leading: const Icon(Symbols.dark_mode),
-            title: const Text('深色模式'),
+            title: Text(l10n.settingsDarkMode),
             trailing: DropdownButton<ThemeMode>(
               value: widget.theme.mode,
               underline: const SizedBox(),
-              onChanged: (m) =>
-                  m != null ? widget.theme.setMode(m) : null,
-              items: const [
+              onChanged: (m) => m != null ? widget.theme.setMode(m) : null,
+              items: [
                 DropdownMenuItem(
-                    value: ThemeMode.system, child: Text('跟随系统')),
+                  value: ThemeMode.system,
+                  child: Text(l10n.themeSystem),
+                ),
                 DropdownMenuItem(
-                    value: ThemeMode.light, child: Text('浅色')),
+                  value: ThemeMode.light,
+                  child: Text(l10n.themeLight),
+                ),
                 DropdownMenuItem(
-                    value: ThemeMode.dark, child: Text('深色')),
+                  value: ThemeMode.dark,
+                  child: Text(l10n.themeDark),
+                ),
               ],
             ),
           ),
@@ -384,8 +417,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 Text(
                   widget.theme.useDynamicColor &&
                           widget.theme.dynamicColorAvailable
-                      ? '主题色（已启用动态取色，预选色暂未生效）'
-                      : '主题色',
+                      ? l10n.settingsThemeColorOverridden
+                      : l10n.settingsThemeColor,
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),
@@ -405,15 +438,18 @@ class _SettingsPageState extends State<SettingsPage> {
                             shape: BoxShape.circle,
                             border: Border.all(
                               width: 3,
-                              color: widget.theme.seed.toARGB32() ==
-                                      c.toARGB32()
+                              color:
+                                  widget.theme.seed.toARGB32() == c.toARGB32()
                                   ? Theme.of(context).colorScheme.onSurface
                                   : Colors.transparent,
                             ),
                           ),
                           child: widget.theme.seed.toARGB32() == c.toARGB32()
-                              ? const Icon(Symbols.check,
-                                  color: Colors.white, size: 18)
+                              ? const Icon(
+                                  Symbols.check,
+                                  color: Colors.white,
+                                  size: 18,
+                                )
                               : null,
                         ),
                       ),
@@ -424,15 +460,15 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           ListTile(
             leading: const Icon(Symbols.font_download),
-            title: const Text('字体'),
+            title: Text(l10n.settingsFont),
             subtitle: Text(_fontLabel),
             onTap: _editFont,
           ),
           const Divider(),
-          const _SectionHeader('导航'),
+          _SectionHeader(l10n.settingsSectionNavigation),
           ListTile(
             leading: const Icon(Symbols.title),
-            title: const Text('顶部标题'),
+            title: Text(l10n.settingsTopTitle),
             subtitle: Text(_appBarSubtitle),
             trailing: const Icon(Symbols.edit),
             onTap: _editAppBarTitle,
@@ -440,38 +476,49 @@ class _SettingsPageState extends State<SettingsPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text(
-              '长按拖动调整顺序；勾选控制显示。打开应用时默认进入所选标签。',
+              l10n.settingsNavHelp,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           _NavTabEditor(ui: widget.ui),
           const Divider(),
-          const _SectionHeader('存储'),
+          _SectionHeader(l10n.settingsSectionStorage),
           ListTile(
             leading: const Icon(Symbols.database),
-            title: const Text('笔记缓存'),
-            subtitle:
-                Text('已使用 ${_fmt(_cacheBytes)} / 上限 ${_fmt(_cacheLimit)}'),
+            title: Text(l10n.settingsNoteCache),
+            subtitle: Text(
+              l10n.settingsCacheUsage(_fmt(_cacheBytes), _fmt(_cacheLimit)),
+            ),
           ),
           ListTile(
             leading: const Icon(Symbols.delete),
-            title: const Text('清理缓存'),
+            title: Text(l10n.settingsClearCache),
             onTap: _clearCache,
           ),
           ListTile(
             leading: const Icon(Symbols.tune),
-            title: const Text('缓存上限'),
+            title: Text(l10n.settingsCacheLimit),
             subtitle: Text(_fmt(_cacheLimit)),
             onTap: _editCacheLimit,
           ),
           const Divider(),
-          const _SectionHeader('关于'),
+          _SectionHeader(l10n.settingsSectionAbout),
           ListTile(
             leading: const Icon(Symbols.info),
-            title: const Text('Perlite Flow'),
-            subtitle: Text('Perlite Android 客户端 · $_version'),
+            title: Text(l10n.appTitle),
+            subtitle: Text(l10n.settingsAboutSubtitle(_version)),
+          ),
+          ListTile(
+            leading: const Icon(Symbols.code),
+            title: Text(l10n.settingsSourceCode),
+            subtitle: const Text('github.com/Rosatus/perlite-flow'),
+            trailing: const Icon(Symbols.open_in_new),
+            onTap: () => launchUrl(
+              Uri.parse('https://github.com/Rosatus/perlite-flow'),
+              mode: LaunchMode.externalApplication,
+            ),
           ),
         ],
       ),
@@ -516,91 +563,101 @@ class _NavTabEditor extends StatelessWidget {
     return Column(
       children: [
         for (final t in all)
-          Builder(builder: (context) {
-            final isVisible = visible.contains(t);
-            final isDefault = ui.defaultTab == t;
-            final idx = isVisible ? visible.indexOf(t) : -1;
-            return ListTile(
-              dense: true,
-              leading: Checkbox(
-                value: isVisible,
-                onChanged: all.length - hidden.length > 1 || !isVisible
-                    ? (v) => ui.setTabVisible(t, v ?? false)
-                    : null,
-              ),
-              title: Row(
-                children: [
-                  Icon(t.icon, size: 18, color: cs.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  Text(t.label),
-                  if (isDefault) ...[
+          Builder(
+            builder: (context) {
+              final isVisible = visible.contains(t);
+              final isDefault = ui.defaultTab == t;
+              final idx = isVisible ? visible.indexOf(t) : -1;
+              return ListTile(
+                dense: true,
+                leading: Checkbox(
+                  value: isVisible,
+                  onChanged: all.length - hidden.length > 1 || !isVisible
+                      ? (v) => ui.setTabVisible(t, v ?? false)
+                      : null,
+                ),
+                title: Row(
+                  children: [
+                    Icon(t.icon, size: 18, color: cs.onSurfaceVariant),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: cs.primaryContainer,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '默认',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onPrimaryContainer,
+                    Text(t.label(context.l10n)),
+                    if (isDefault) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
                         ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              subtitle: isVisible
-                  ? Text('位置 ${idx + 1} / ${visible.length}',
-                      style: const TextStyle(fontSize: 11))
-                  : const Text('已隐藏', style: TextStyle(fontSize: 11)),
-              trailing: isVisible
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Symbols.arrow_upward, size: 18),
-                          tooltip: '上移',
-                          onPressed: idx > 0
-                              ? () {
-                                  final next = List<NavTab>.of(visible);
-                                  next.removeAt(idx);
-                                  next.insert(idx - 1, t);
-                                  ui.setOrder(next);
-                                }
-                              : null,
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        IconButton(
-                          icon: const Icon(Symbols.arrow_downward, size: 18),
-                          tooltip: '下移',
-                          onPressed: idx < visible.length - 1
-                              ? () {
-                                  final next = List<NavTab>.of(visible);
-                                  next.removeAt(idx);
-                                  next.insert(idx + 1, t);
-                                  ui.setOrder(next);
-                                }
-                              : null,
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            isDefault ? Symbols.star : Symbols.star,
-                            size: 18,
-                            fill: isDefault ? 1 : 0,
-                            color: isDefault ? cs.primary : null,
+                        child: Text(
+                          context.l10n.navDefaultBadge,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: cs.onPrimaryContainer,
                           ),
-                          tooltip: '设为默认',
-                          onPressed:
-                              isDefault ? null : () => ui.setDefault(t),
                         ),
-                      ],
-                    )
-                  : null,
-            );
-          }),
+                      ),
+                    ],
+                  ],
+                ),
+                subtitle: isVisible
+                    ? Text(
+                        context.l10n.navPosition(idx + 1, visible.length),
+                        style: const TextStyle(fontSize: 11),
+                      )
+                    : Text(
+                        context.l10n.navHidden,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                trailing: isVisible
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Symbols.arrow_upward, size: 18),
+                            tooltip: context.l10n.navMoveUp,
+                            onPressed: idx > 0
+                                ? () {
+                                    final next = List<NavTab>.of(visible);
+                                    next.removeAt(idx);
+                                    next.insert(idx - 1, t);
+                                    ui.setOrder(next);
+                                  }
+                                : null,
+                          ),
+                          IconButton(
+                            icon: const Icon(Symbols.arrow_downward, size: 18),
+                            tooltip: context.l10n.navMoveDown,
+                            onPressed: idx < visible.length - 1
+                                ? () {
+                                    final next = List<NavTab>.of(visible);
+                                    next.removeAt(idx);
+                                    next.insert(idx + 1, t);
+                                    ui.setOrder(next);
+                                  }
+                                : null,
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              isDefault ? Symbols.star : Symbols.star,
+                              size: 18,
+                              fill: isDefault ? 1 : 0,
+                              color: isDefault ? cs.primary : null,
+                            ),
+                            tooltip: context.l10n.navSetDefault,
+                            onPressed: isDefault
+                                ? null
+                                : () => ui.setDefault(t),
+                          ),
+                        ],
+                      )
+                    : null,
+              );
+            },
+          ),
       ],
     );
   }

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/nav_tab.dart';
@@ -11,6 +11,13 @@ class UiState extends ChangeNotifier {
   static const _defaultKey = 'nav_default_tab';
   static const _appBarModeKey = 'appbar_title_mode';
   static const _appBarTextKey = 'appbar_title_text';
+  static const _localeKey = 'app_locale';
+
+  /// Languages shipped with the app, in settings-menu order.
+  static const supportedLocales = [Locale('en'), Locale('zh'), Locale('ja')];
+
+  /// Explicit app language. Null follows the Android system language.
+  Locale? locale;
 
   /// How the top AppBar title is rendered on HomePage.
   /// * `app` — always "Perlite Flow" (current hardcoded behaviour)
@@ -36,10 +43,7 @@ class UiState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList(_orderKey);
     if (saved != null) {
-      final parsed = saved
-          .map(NavTab.tryParse)
-          .whereType<NavTab>()
-          .toList();
+      final parsed = saved.map(NavTab.tryParse).whereType<NavTab>().toList();
       if (parsed.isNotEmpty) {
         tabs = parsed;
       }
@@ -57,7 +61,20 @@ class UiState extends ChangeNotifier {
       if (m != null) appBarTitleMode = m;
     }
     customTitle = prefs.getString(_appBarTextKey) ?? '';
+    final code = prefs.getString(_localeKey);
+    locale = supportedLocales.where((l) => l.languageCode == code).firstOrNull;
     notifyListeners();
+  }
+
+  Future<void> setLocale(Locale? next) async {
+    locale = next;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    if (next == null) {
+      await prefs.remove(_localeKey);
+    } else {
+      await prefs.setString(_localeKey, next.languageCode);
+    }
   }
 
   Future<void> setAppBarTitle(AppBarTitleMode mode, {String? text}) async {
@@ -77,8 +94,7 @@ class UiState extends ChangeNotifier {
     }
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-        _orderKey, tabs.map((t) => t.name).toList());
+    await prefs.setStringList(_orderKey, tabs.map((t) => t.name).toList());
     await prefs.setString(_defaultKey, defaultTab.name);
   }
 

@@ -8,18 +8,45 @@ import 'package:html/parser.dart' as html_parser;
 import '../models/file_node.dart';
 import '../models/search_result.dart';
 
-class PerliteAuthException implements Exception {
-  final String message;
-  const PerliteAuthException([this.message = 'Unauthorized']);
-  @override
-  String toString() => message;
+/// Stable failure categories. UI code maps them to localized text.
+enum PerliteErrorKind {
+  unauthorized,
+  forbidden,
+  notFound,
+  dnsFailed,
+  tlsFailed,
+  connectionRefused,
+  networkUnreachable,
+  connectionFailed,
+  httpStatus,
+  requestFailed,
+  invalidUrl,
 }
 
-class PerliteUnreachableException implements Exception {
-  final String message;
-  const PerliteUnreachableException([this.message = 'Server unreachable']);
+class PerliteException implements Exception {
+  final PerliteErrorKind kind;
+
+  /// Untranslated technical detail, such as an HTTP status or socket error.
+  final String detail;
+
+  const PerliteException(this.kind, [this.detail = '']);
+
   @override
-  String toString() => message;
+  String toString() => detail.isEmpty ? kind.name : '${kind.name}: $detail';
+}
+
+class PerliteAuthException extends PerliteException {
+  const PerliteAuthException([
+    super.kind = PerliteErrorKind.unauthorized,
+    super.detail,
+  ]);
+}
+
+class PerliteUnreachableException extends PerliteException {
+  const PerliteUnreachableException([
+    super.kind = PerliteErrorKind.connectionFailed,
+    super.detail,
+  ]);
 }
 
 /// Thin client over Perlite's `content.php` endpoints. There is no JSON API;
@@ -32,22 +59,23 @@ class PerliteClient {
     String? username,
     String? password,
     Duration timeout = const Duration(seconds: 15),
-  }) : _dio = Dio(BaseOptions(
-          // Dio joins `baseUrl + path` with no separator, so a missing
-          // trailing slash turns `example.com` + `content.php` into
-          // `example.comcontent.php` — a DNS lookup that can never
-          // resolve. Normalize once here.
-          baseUrl: baseUrl.endsWith('/') ? baseUrl : '$baseUrl/',
-          connectTimeout: timeout,
-          receiveTimeout: timeout,
-          followRedirects: true,
-          validateStatus: (s) => s != null && s < 500,
-        )) {
+  }) : _dio = Dio(
+         BaseOptions(
+           // Dio joins `baseUrl + path` with no separator, so a missing
+           // trailing slash turns `example.com` + `content.php` into
+           // `example.comcontent.php` — a DNS lookup that can never
+           // resolve. Normalize once here.
+           baseUrl: baseUrl.endsWith('/') ? baseUrl : '$baseUrl/',
+           connectTimeout: timeout,
+           receiveTimeout: timeout,
+           followRedirects: true,
+           validateStatus: (s) => s != null && s < 500,
+         ),
+       ) {
     if (username != null && username.isNotEmpty) {
       _dio.options.headers['Authorization'] =
           'Basic ${base64Encode(utf8.encode('$username:${password ?? ''}'))}';
     }
-
   }
 
   String get baseUrl => _dio.options.baseUrl;
@@ -55,10 +83,10 @@ class PerliteClient {
   Never _rethrow(DioException e) {
     final code = e.response?.statusCode;
     if (code == 401) {
-      throw const PerliteAuthException('用户名或密码错误 (401)');
+      throw const PerliteAuthException();
     }
     if (code == 403) {
-      throw const PerliteAuthException('访问被拒绝 (403)');
+      throw const PerliteAuthException(PerliteErrorKind.forbidden);
     }
     final inner = e.error?.toString() ?? '';
     final msg = e.message ?? (inner.isNotEmpty ? inner : e.type.name);
@@ -70,24 +98,36 @@ class PerliteClient {
       final detail = inner.isEmpty ? '' : ' ($inner)';
       if (inner.contains('Failed host lookup') ||
           inner.contains('No address associated')) {
-        throw const PerliteUnreachableException('域名解析失败，请检查地址');
+        throw PerliteUnreachableException(PerliteErrorKind.dnsFailed, inner);
       }
       if (inner.contains('handshake') ||
           inner.contains('certificate') ||
           inner.contains('CERT_')) {
-        throw const PerliteUnreachableException('TLS 握手失败，请检查 HTTPS 证书');
+        throw PerliteUnreachableException(PerliteErrorKind.tlsFailed, inner);
       }
       if (inner.contains('Connection refused') ||
           inner.contains('errno = 111')) {
-        throw const PerliteUnreachableException('连接被拒绝（端口未开放或防火墙拦截）');
+        throw PerliteUnreachableException(
+          PerliteErrorKind.connectionRefused,
+          inner,
+        );
       }
       if (inner.contains('Network is unreachable') ||
           inner.contains('errno = 101')) {
-        throw const PerliteUnreachableException('网络不可达，请检查网络或代理');
+        throw PerliteUnreachableException(
+          PerliteErrorKind.networkUnreachable,
+          inner,
+        );
       }
-      throw PerliteUnreachableException('无法连接服务器: $msg$detail');
+      throw PerliteUnreachableException(
+        PerliteErrorKind.connectionFailed,
+        '$msg$detail',
+      );
     }
-    throw PerliteUnreachableException('请求失败: $msg$inner');
+    throw PerliteUnreachableException(
+      PerliteErrorKind.requestFailed,
+      '$msg$inner',
+    );
   }
 
   Future<String> _get(String path, Map<String, String> query) async {
@@ -95,13 +135,13 @@ class PerliteClient {
       final res = await _dio.get<String>(path, queryParameters: query);
       final code = res.statusCode;
       if (code == 401) {
-        throw const PerliteAuthException('用户名或密码错误 (401)');
+        throw const PerliteAuthException();
       }
       if (code == 404) {
-        throw const PerliteUnreachableException('服务器返回 404，请检查 URL');
+        throw const PerliteUnreachableException(PerliteErrorKind.notFound);
       }
       if (code == null || code >= 400) {
-        throw PerliteUnreachableException('HTTP $code');
+        throw PerliteUnreachableException(PerliteErrorKind.httpStatus, '$code');
       }
       return res.data ?? '';
     } on DioException catch (e) {
@@ -109,13 +149,15 @@ class PerliteClient {
     }
   }
 
-  /// Probes connectivity. Returns null on success, error message otherwise.
-  Future<String?> probe() async {
+  /// Probes connectivity. Returns null on success, a typed error otherwise.
+  Future<PerliteException?> probe() async {
     try {
       await _get('content.php', {'about': ''});
       return null;
+    } on PerliteException catch (e) {
+      return e;
     } catch (e) {
-      return e.toString();
+      return PerliteException(PerliteErrorKind.requestFailed, e.toString());
     }
   }
 
@@ -158,12 +200,15 @@ class PerliteClient {
           }
           final titleEl = el.querySelector('.nav-folder-title-content');
           final childrenEl = el.querySelector('.nav-folder-children');
-          nodes.add(FileNode(
-            name: titleEl?.text.trim() ?? '?',
-            type: FileNodeType.folder,
-            children:
-                childrenEl != null ? parseContainer(childrenEl) : const [],
-          ));
+          nodes.add(
+            FileNode(
+              name: titleEl?.text.trim() ?? '?',
+              type: FileNodeType.folder,
+              children: childrenEl != null
+                  ? parseContainer(childrenEl)
+                  : const [],
+            ),
+          );
         } else if (el.classes.contains('nav-file')) {
           nodes.add(_parseFileNode(el));
         }
@@ -171,7 +216,8 @@ class PerliteClient {
       return nodes;
     }
 
-    final nav = doc.querySelector('.nav-files-container') ??
+    final nav =
+        doc.querySelector('.nav-files-container') ??
         doc.querySelector('.tree-item-children') ??
         doc.body!;
     return parseContainer(nav);
@@ -240,13 +286,15 @@ class PerliteClient {
           .where((e) => e.plain.trim().isNotEmpty)
           .toList();
 
-      groups.add(SearchResultGroup(
-        notePath: notePath,
-        displayPath: displayPath,
-        matches: matches,
-        isFileNameMatch: matches.isEmpty,
-        excerpts: excerpts,
-      ));
+      groups.add(
+        SearchResultGroup(
+          notePath: notePath,
+          displayPath: displayPath,
+          matches: matches,
+          isFileNameMatch: matches.isEmpty,
+          excerpts: excerpts,
+        ),
+      );
     }
     return groups;
   }
@@ -285,8 +333,7 @@ class PerliteClient {
     final runs = <({String text, bool match})>[];
     for (final p in pieces) {
       if (runs.isNotEmpty && runs.last.match == p.match) {
-        runs[runs.length - 1] =
-            (text: runs.last.text + p.text, match: p.match);
+        runs[runs.length - 1] = (text: runs.last.text + p.text, match: p.match);
       } else {
         runs.add(p);
       }
