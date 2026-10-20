@@ -34,23 +34,24 @@ Write-Host "TEMP      = $tmp" -ForegroundColor Cyan
 
 Set-Location $root
 
-# Auto-bump build number so every install is a real update.
-# Read `version: X.Y.Z+N` from pubspec.yaml, replace N with the
-# current Unix-time-mod-1M so reinstalling the APK never silently
-# no-ops. versionName stays semver.
+# Minutes since 2024-01-01 UTC. CI uses the same formula, so versionCode
+# keeps increasing without overflowing Android's integer limit.
+$epoch = [DateTimeOffset]::Parse('2024-01-01T00:00:00Z')
+$buildNo = [int][math]::Floor(([DateTimeOffset]::UtcNow - $epoch).TotalMinutes)
 $pubspec = Get-Content "$root\pubspec.yaml" -Raw
-if ($pubspec -match 'version:\s*(\d+\.\d+\.\d+)\+(\d+)') {
-    $semver = $Matches[1]
-    $buildNo = [int]([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() % 1000000)
-    Write-Host "versionName = $semver, versionCode = $buildNo" -ForegroundColor Cyan
-    $env:PERLITE_BUILD_NUMBER = $buildNo
+if ($pubspec -match 'version:\s*(\d+\.\d+\.\d+)') {
+    Write-Host "versionName = $($Matches[1]), versionCode = $buildNo" -ForegroundColor Cyan
 }
 
 $flutter = 'C:\code\sdk\flutter\bin\flutter.bat'
+$dart = 'C:\code\sdk\flutter\bin\dart.bat'
 & $flutter config --jdk-dir=$jdk | Out-Null
-& $flutter build apk --release --build-number $env:PERLITE_BUILD_NUMBER @args
+& $flutter build apk --release --split-per-abi --build-number $buildNo @args
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& $dart run tool/package_apks.dart $buildNo dist
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ''
-Write-Host 'APK:' -ForegroundColor Green
-Get-ChildItem "$root\build\app\outputs\apk\release\app-release.apk" |
+Write-Host 'APKs:' -ForegroundColor Green
+Get-ChildItem "$root\dist\*.apk" |
     Select-Object Name, @{N='MB';E={[math]::Round($_.Length/1MB,1)}}, LastWriteTime
