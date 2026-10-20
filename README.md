@@ -30,9 +30,21 @@ flutter run            # debug
 flutter build apk      # release
 ```
 
+### Release APKs
+
+`build-apk.ps1` builds one APK per CPU architecture and writes them to `dist/`:
+
+```text
+perlite-flow-v1.3.2-b1520000-arm64-v8a.apk
+perlite-flow-v1.3.2-b1520000-armeabi-v7a.apk
+perlite-flow-v1.3.2-b1520000-x86_64.apk
+```
+
+Most modern phones use `arm64-v8a`. `SHA256SUMS.txt` contains checksums.
+
 ### Release signing
 
-`build-apk.ps1` wraps `flutter build apk --release` and expects `android/key.properties` plus `android/app/release.keystore`. Both are `.gitignore`d — generate your own:
+`build-apk.ps1` expects `android/key.properties` plus `android/app/release.keystore`. Both are `.gitignore`d — generate your own:
 
 ```sh
 keytool -genkey -v -keystore android\app\release.keystore `
@@ -46,6 +58,19 @@ keyPassword=...
 keyAlias=perlite_flow
 storeFile=release.keystore
 ```
+
+### GitHub Actions
+
+`.github/workflows/android.yml` analyzes, tests, and builds split APKs on pushes, pull requests, and manual runs. Download them from the workflow run's artifacts. Push a tag such as `v1.3.2` to attach the APKs to a GitHub Release.
+
+For releases signed with the same key as local builds, add these repository secrets:
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Without signing secrets, branch builds use debug signing and tag releases fail.
 
 ## Test
 

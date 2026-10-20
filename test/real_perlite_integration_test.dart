@@ -13,6 +13,13 @@ import 'package:perlite_flow/models/file_node.dart';
 import 'package:perlite_flow/services/perlite_client.dart';
 
 void main() {
+  final indexSkip = File('test/real_index.html').existsSync()
+      ? null
+      : 'Private snapshot test/real_index.html is not present.';
+  final searchSkip = File('test/real_search.html').existsSync()
+      ? null
+      : 'Private snapshot test/real_search.html is not present.';
+
   group('Real vault: index.html tree', () {
     test('parses the production vault nav into a usable file tree', () {
       final file = File('test/real_index.html');
@@ -61,7 +68,7 @@ void main() {
       print('tree: $folders folders, $notes notes, '
           '$canvas canvas, $attachments attachments');
       expect(notes + canvas + attachments, greaterThan(0));
-    });
+    }, skip: indexSkip);
   });
 
   group('Real vault: search result fragment', () {
@@ -93,6 +100,6 @@ void main() {
       // ignore: avoid_print
       print('search groups: ${groups.length}, with content: $withContent');
       expect(withContent, greaterThan(0));
-    });
+    }, skip: searchSkip);
   });
 }
