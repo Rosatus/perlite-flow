@@ -11,7 +11,7 @@ A third-party Android client for [Perlite](https://github.com/secure-77/Perlite)
 - **File tree.** Parses the vault's navigation DOM into a native file browser. Pull-to-refresh, filename + content search.
 - **Reading view.** Reuses Perlite's rendered HTML inside `InAppWebView` so KaTeX, Mermaid, code highlighting and image attachments render exactly like the web app.
 - **Search.** Debounced input, IME composition-aware, hit-highlighted excerpts straight from the server response.
-- **Material 3 throughout.** Dynamic color (Material You) on Android 12+, manual seed palette otherwise, light/dark/auto theme, adjustable reader font scale.
+- **Material 3 throughout.** Dynamic color (Material You) on Android 12+, manual seed palette otherwise, light/dark/auto theme, bundled reader fonts, and adjustable reader font scale.
 
 ## Why
 

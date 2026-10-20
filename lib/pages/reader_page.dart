@@ -275,7 +275,7 @@ class _ReaderPageState extends State<ReaderPage> {
           basicAuthUser: widget.app.active?.username,
           basicAuthPassword: pwd,
           fontScale: _fontScale,
-          readerFont: widget.theme.effectiveChoice?.family ?? 'system',
+          readerFontId: widget.theme.effectiveChoice?.id ?? 'system',
           onOpenNote: _openNote,
           onOpenExternal: _openExternal,
           onControllerReady: (ctrl) {
@@ -293,6 +293,9 @@ class _ReaderPageState extends State<ReaderPage> {
                 }
               },
             );
+          },
+          onLoadStop: (ctrl) {
+            // Every reload replaces the document, so reinstall the listener.
             ctrl.evaluateJavascript(source: '''
 (() => {
   let last = 0;

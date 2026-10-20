@@ -1,8 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import '../state/theme_state.dart';
 
 /// Renders a Perlite HTML fragment inside a WebView styled like the Perlite
 /// web app. Internal links and external links are intercepted and reported
@@ -12,7 +11,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 /// reserved origin `https://appassets.androidplatform.net`. That keeps
 /// `file://` out of the picture — where `localStorage`/`sessionStorage` and
 /// CORS are unreliable — and lets `@font-face` pull the bundled TTFs through
-/// `AssetsPathHandler` without a network round trip.
+/// the native `AssetsPathHandler` without a network round trip.
 class NoteWebView extends StatefulWidget {
   final String html;
   final String baseUrl;
@@ -33,9 +32,11 @@ class NoteWebView extends StatefulWidget {
   /// scroll progress + jump-to-top via the controller.
   final void Function(InAppWebViewController controller)? onControllerReady;
 
-  /// Reader body font — app font choice, applied via @font-face in the
-  /// generated HTML when it isn't the system sentinel. Empty = system.
-  final String readerFont;
+  /// Called after every document load, including font/content reloads.
+  final void Function(InAppWebViewController controller)? onLoadStop;
+
+  /// Stable [FontChoice.id] for the reader body.
+  final String readerFontId;
 
   const NoteWebView({
     super.key,
@@ -47,7 +48,8 @@ class NoteWebView extends StatefulWidget {
     this.onOpenNote,
     this.onOpenExternal,
     this.onControllerReady,
-    this.readerFont = 'system',
+    this.onLoadStop,
+    this.readerFontId = 'system',
   });
 
   /// URL the note document is served from. Lives on the asset loader's
@@ -55,6 +57,7 @@ class NoteWebView extends StatefulWidget {
   static final WebUri _documentUri = WebUri(
     'https://appassets.androidplatform.net/pf_note/index.html',
   );
+  static const _assetOrigin = 'https://appassets.androidplatform.net';
 
   static const _shellTemplate = '''
 <!DOCTYPE html>
@@ -65,33 +68,20 @@ class NoteWebView extends StatefulWidget {
 <style>
   :root { color-scheme: light dark; }
   html { -webkit-text-size-adjust: 100%; }
-  /* Bundled fonts, served locally by WebViewAssetLoader. */
+  /* Bundled fonts. URLs must be absolute because <base> points at Perlite. */
   @font-face {
     font-family: 'JetBrains Mono';
-    src: url('/flutter_assets/assets/fonts/JetBrainsMono-Regular.ttf') format('truetype');
+    src: url('__ASSET_ORIGIN__/assets/flutter_assets/assets/fonts/JetBrainsMono-Regular.ttf') format('truetype');
     font-weight: 400;    font-display: swap;
-    /* Latin + common symbols — JBM is Latin-only here so it never wins CJK. */
-    unicode-range:
-      U+0000-00FF, U+0100-024F, U+0259,
-      U+2000-206F, U+2070-209F, U+20A0-20CF, U+2100-214F,
-      U+2190-21FF, U+2200-22FF, U+2300-23FF, U+2500-257F,
-      U+2580-259F, U+25A0-25FF, U+2600-26FF, U+2700-27BF,
-      U+FF00-FF5E, U+FF61-FF9F, U+FFE0-FFE6;
   }
   @font-face {
     font-family: 'LXGW WenKai';
-    src: url('/flutter_assets/assets/fonts/LXGWWenKai-Regular.ttf') format('truetype');
+    src: url('__ASSET_ORIGIN__/assets/flutter_assets/assets/fonts/LXGWWenKai-Regular.ttf') format('truetype');
     font-weight: 400;
     font-display: swap;
-    /* CJK blocks — WenKai only claims these, leaving Latin to JBM. */
-    unicode-range:
-      U+3000-303F, U+3040-309F, U+30A0-30FF,
-      U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF,
-      U+FE30-FE4F, U+FF00-FFEF, U+20000-2A6DF,
-      U+2A700-2B73F, U+2B740-2B81F, U+2B820-2CEAF;
   }
   body {
-    font-family: __BODY_FONT__, "PingFang SC", "Noto Sans SC", sans-serif;
+    font-family: __BODY_FONT__;
     line-height: 1.7;
     padding: 16px 20px 48px;
     margin: 0;
@@ -152,78 +142,41 @@ document.addEventListener('click', function(e) {
 
   String _wrapHtml() {
     final px = (16 * fontScale).clamp(10.0, 28.0).toStringAsFixed(1);
-    // Reader defaults to the bundled fonts: JBM for Latin + WenKai for CJK.
-    // An explicit non-default font selection slots in ahead of WenKai.
-    String bodyFont;
-    switch (readerFont) {
-      case 'system':
-      case 'LXGW WenKai':
-        bodyFont = '"JetBrains Mono", "LXGW WenKai"';
-        break;
-      default:
-        bodyFont = '"JetBrains Mono", "$readerFont", "LXGW WenKai"';
-    }
+    final bodyFont = cssFontStack(readerFontId);
     return _shellTemplate
+        .replaceAll('__ASSET_ORIGIN__', _assetOrigin)
         .replaceFirst('__FONTSIZE__', px)
         .replaceFirst('__BODY_FONT__', bodyFont)
-        .replaceFirst('__BASE__', baseUrl)
+        .replaceFirst('__BASE__', const HtmlEscape(HtmlEscapeMode.attribute).convert(baseUrl))
         .replaceFirst('__CONTENT__', html);
   }
+
+  @visibleForTesting
+  static String cssFontStack(String fontId) {
+    FontChoice? choice;
+    for (final c in ThemeState.fontChoices) {
+      if (c.id == fontId) choice = c;
+    }
+    final families = [
+      if (choice?.family != null) choice!.family!,
+      ...?choice?.fallback,
+    ];
+    return [
+      ...families.map((f) => '"$f"'),
+      '"PingFang SC"',
+      '"Noto Sans SC"',
+      'sans-serif',
+    ].join(', ');
+  }
+
+  @visibleForTesting
+  String buildDocumentForTest() => _wrapHtml();
 
   @override
   State<NoteWebView> createState() => _NoteWebViewState();
 }
 
 /// Serves the current note HTML for a fixed path on the asset loader domain.
-/// The state keeps [html] up to date so the native request thread always
-/// gets the latest document without any cross-thread coordination.
-/// Serves bundled Flutter assets (fonts) to the WebView. `AssetsPathHandler`
-/// opens files relative to the APK's raw assets dir, but Flutter nests its
-/// bundle under `flutter_assets/` — so we load through `rootBundle` which
-/// knows the prefix.
-class _BundleAssetPathHandler extends CustomPathHandler {
-  _BundleAssetPathHandler({required super.path});
-
-  @override
-  Future<WebResourceResponse?> handle(String path) async {
-    final rel = path.startsWith('/') ? path.substring(1) : path;
-    try {
-      final data = await rootBundle.load(rel);
-      return WebResourceResponse(
-        contentType: _mimeFor(rel),
-        // ByteData.buffer can be a shared slab with an offset — copy the
-        // exact byte range so Chromium doesn't reject malformed font data.
-        data: Uint8List.fromList(
-            data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes)),
-      );
-    } catch (_) {
-      return WebResourceResponse(
-        contentType: 'text/plain',
-        statusCode: 404,
-        reasonPhrase: 'Not Found',
-        headers: const {},
-      );
-    }
-  }
-
-  static String _mimeFor(String path) {
-    final ext = path.split('.').last.toLowerCase();
-    return switch (ext) {
-      'ttf' => 'font/ttf',
-      'otf' => 'font/otf',
-      'woff' => 'font/woff',
-      'woff2' => 'font/woff2',
-      'html' => 'text/html',
-      'css' => 'text/css',
-      'js' => 'application/javascript',
-      'png' => 'image/png',
-      'jpg' || 'jpeg' => 'image/jpeg',
-      'webp' => 'image/webp',
-      'svg' => 'image/svg+xml',
-      _ => 'application/octet-stream',
-    };
-  }
-}
 class _NoteHtmlPathHandler extends CustomPathHandler {
   _NoteHtmlPathHandler({required super.path});
 
@@ -261,7 +214,9 @@ class _NoteWebViewState extends State<NoteWebView> {
   @override
   void didUpdateWidget(NoteWebView old) {
     super.didUpdateWidget(old);
-    if (old.html != widget.html || old.readerFont != widget.readerFont) {
+    if (old.html != widget.html ||
+        old.readerFontId != widget.readerFontId ||
+        old.baseUrl != widget.baseUrl) {
       _htmlHandler.html = widget._wrapHtml();
       _controller?.loadUrl(
         urlRequest: URLRequest(url: NoteWebView._documentUri),
@@ -294,7 +249,8 @@ class _NoteWebViewState extends State<NoteWebView> {
         webViewAssetLoader: WebViewAssetLoader(
           pathHandlers: [
             _htmlHandler,
-            _BundleAssetPathHandler(path: '/flutter_assets/'),
+            // Native streaming avoids copying large CJK fonts over a channel.
+            AssetsPathHandler(path: '/assets/'),
           ],
         ),
       ),
@@ -325,6 +281,7 @@ class _NoteWebViewState extends State<NoteWebView> {
           urlRequest: URLRequest(url: NoteWebView._documentUri),
         );
       },
+      onLoadStop: (controller, _) => widget.onLoadStop?.call(controller),
       shouldOverrideUrlLoading: (controller, action) async {
         final url = action.request.url;
         if (url == null) return NavigationActionPolicy.ALLOW;

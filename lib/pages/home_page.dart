@@ -344,7 +344,7 @@ class _HomePageState extends State<HomePage> {
           baseUrl: widget.app.active?.baseUrl ?? '',
           basicAuthUser: widget.app.active?.username,
           basicAuthPassword: snap.data,
-          readerFont: widget.theme.effectiveChoice?.family ?? 'system',
+          readerFontId: widget.theme.effectiveChoice?.id ?? 'system',
           onOpenNote: _openNote,
           onOpenExternal: _openExternal,
         );

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -149,9 +148,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   Expanded(
                     child: Text(
                       c.label,
-                      style: c.family != null
-                          ? _previewStyle(c)
-                          : null,
+                      style: c.family != null ? c.previewStyle : null,
                     ),
                   ),
                 ],
@@ -165,23 +162,6 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     setState(() {});
   }
-
-  /// Returns a preview style for a font choice. Null when the family isn't
-  /// resolvable via Google Fonts or isn't declared locally.
-  TextStyle? _previewStyle(FontChoice c) {
-    final family = c.family;
-    if (family == null) return null;
-    // WenKai is a bundled asset font — render the preview directly.
-    if (family == 'LXGW WenKai') {
-      return TextStyle(fontFamily: family);
-    }
-    try {
-      return GoogleFonts.getFont(family);
-    } catch (_) {
-      return null;
-    }
-  }
-
 
   Future<void> _editAppBarTitle() async {
     final ui = widget.ui;

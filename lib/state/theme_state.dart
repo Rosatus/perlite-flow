@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeState extends ChangeNotifier {
@@ -11,9 +10,8 @@ class ThemeState extends ChangeNotifier {
   ThemeMode mode = ThemeMode.system;
   Color seed = const Color(0xFF00796B); // teal — calm reading accent
   bool useDynamicColor = true;
-  /// Google Fonts family name, or 'system' for the platform default.
-  /// Applied via ThemeData.textTheme.apply so it covers every style
-  /// without per-widget wiring.
+  /// Stable font choice id, or 'system' for the platform default.
+  /// Every non-system choice is bundled in the APK.
   String fontFamily = 'system';
 
   /// Set by the app once it knows the device actually exposed a core
@@ -31,22 +29,21 @@ class ThemeState extends ChangeNotifier {
     Color(0xFF8D6E63), // brown
   ];
 
-  /// Curated font families that pair well with the app. 'system'
-  /// is a sentinel meaning "use the platform default" — it is NOT
-  /// passed to GoogleFonts.
+  /// Bundled font families. Keep this list in sync with pubspec.yaml and
+  /// the reader's @font-face declarations; no font is downloaded at runtime.
   static const List<FontChoice> fontChoices = [
     FontChoice(id: 'system', label: '系统默认', family: null),
-    FontChoice(id: 'notoSans', label: '思源黑体 Noto Sans SC', family: 'Noto Sans SC'),
-    FontChoice(id: 'notoSerif', label: '思源宋体 Noto Serif SC', family: 'Noto Serif SC'),
-    // Simplified LXGW WenKai ships over HTTP from the server vault
-    // (/Notes/System/fonts/) — the WebView declares it via @font-face and
-    // the app UI falls back to system fonts. family name matches the
-    // @font-face declared family so the reader applies it natively.
-    FontChoice(id: 'lxgw', label: '霞鹜文楷 LXGW WenKai', family: 'LXGW WenKai'),
-    FontChoice(id: 'notoSansTC', label: '思源黑体 Noto Sans TC', family: 'Noto Sans TC'),
-    FontChoice(id: 'notoSerifTC', label: '思源宋体 Noto Serif TC', family: 'Noto Serif TC'),
-    FontChoice(id: 'ibmPlexSans', label: 'IBM Plex Sans', family: 'IBM Plex Sans'),
-    FontChoice(id: 'inter', label: 'Inter', family: 'Inter'),
+    FontChoice(
+      id: 'lxgw',
+      label: '霞鹜文楷 LXGW WenKai',
+      family: 'LXGW WenKai',
+    ),
+    FontChoice(
+      id: 'jetbrainsMono',
+      label: 'JetBrains Mono + 霞鹜文楷',
+      family: 'JetBrains Mono',
+      fallback: ['LXGW WenKai'],
+    ),
   ];
 
   /// Resolves the currently selected choice. Null when the user picked
@@ -97,26 +94,19 @@ class ThemeState extends ChangeNotifier {
     await prefs.setString(_fontKey, id);
   }
 
-  /// Builds the TextTheme for the resolved family. The returned
-  /// theme already has the right fontFamily baked in; pass it
-  /// into `ThemeData(textTheme: ...)`.
+  /// Builds the TextTheme for the resolved bundled family.
   TextTheme textThemeFor(Brightness brightness) {
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
     ).textTheme;
-    final family = effectiveFontFamily;
+    final choice = effectiveChoice;
+    final family = choice?.family;
     if (family == null) return base;
-    // WenKai is bundled as an asset font — `fontFamily:` resolves directly
-    // via the declared family name without going through google_fonts.
-    if (family == 'LXGW WenKai') {
-      return base.apply(fontFamily: family);
-    }
-    try {
-      return GoogleFonts.getTextTheme(family, base);
-    } catch (_) {
-      return base;
-    }
+    return base.apply(
+      fontFamily: family,
+      fontFamilyFallback: choice!.fallback,
+    );
   }
 
   /// Resolves the family name of the currently selected choice. Null when
@@ -130,12 +120,17 @@ class FontChoice {
   final String id;
   /// Human-readable label shown in the settings list.
   final String label;
-  /// Family name — declared font family in pubspec, or a Google Fonts
-  /// name. Null means "system default".
+  /// Family name declared in pubspec. Null means "system default".
   final String? family;
+  /// Bundled families used for glyphs missing from [family].
+  final List<String> fallback;
   const FontChoice({
     required this.id,
     required this.label,
     required this.family,
+    this.fallback = const [],
   });
+
+  TextStyle get previewStyle =>
+      TextStyle(fontFamily: family, fontFamilyFallback: fallback);
 }
