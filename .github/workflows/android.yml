@@ -38,6 +38,37 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Resolve release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(sed -nE 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Cannot read version from pubspec.yaml."
+            exit 1
+          fi
+          TAG="v$VERSION"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+
+          PUBLISH=false
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            if [ "${GITHUB_REF_NAME}" != "$TAG" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match pubspec version $TAG."
+              exit 1
+            fi
+            PUBLISH=true
+          elif [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_NAME}" = "main" ]; then
+            # Publish once per pubspec version; later pushes only build artifacts.
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "Release $TAG already exists; skipping publish."
+            else
+              PUBLISH=true
+            fi
+          fi
+          echo "PUBLISH_RELEASE=$PUBLISH" >> "$GITHUB_ENV"
+          echo "Version $VERSION, publish release: $PUBLISH"
+
       - name: Analyze
         run: flutter analyze
 
@@ -53,8 +84,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
-            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-              echo "::error::Tag releases require Android signing secrets."
+            if [ "$PUBLISH_RELEASE" = "true" ]; then
+              echo "::error::Releases require Android signing secrets."
               exit 1
             fi
             echo "::warning::Signing secrets are not configured; using debug signing."
@@ -83,8 +114,11 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.PUBLISH_RELEASE == 'true'
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Perlite Flow ${{ env.RELEASE_TAG }}
           files: dist/*
           generate_release_notes: true

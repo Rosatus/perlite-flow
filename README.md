@@ -61,7 +61,7 @@ storeFile=release.keystore
 
 ### GitHub Actions
 
-`.github/workflows/android.yml` analyzes, tests, and builds split APKs on pushes, pull requests, and manual runs. Download them from the workflow run's artifacts. Push a tag such as `v1.3.2` to attach the APKs to a GitHub Release.
+`.github/workflows/android.yml` analyzes, tests, and builds split APKs on pushes, pull requests, and manual runs. Download them from the workflow run's artifacts. When `main` contains a new `pubspec.yaml` version, CI creates the matching `v<version>` GitHub Release and attaches signed APKs. Later pushes with the same version only upload workflow artifacts; bump the version to publish again.
 
 For releases signed with the same key as local builds, add these repository secrets:
 
@@ -70,7 +70,7 @@ For releases signed with the same key as local builds, add these repository secr
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-Without signing secrets, branch builds use debug signing and tag releases fail.
+Without signing secrets, branch builds use debug signing and release publishing fails.
 
 ## Test
 
