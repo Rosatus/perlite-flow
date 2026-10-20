@@ -304,5 +304,6 @@ class PerliteClient {
   }
 
   /// Resolves a possibly-relative href from rendered content to an absolute URL.
-  String resolveUrl(String href) => _dio.options.baseUrl + href;
+  String resolveUrl(String href) =>
+      Uri.parse(_dio.options.baseUrl).resolve(href).toString();
 }

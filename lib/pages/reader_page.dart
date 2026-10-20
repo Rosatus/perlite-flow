@@ -80,6 +80,7 @@ class _ReaderPageState extends State<ReaderPage> {
         _html = cached;
         _loading = false;
       });
+      _extractTitle(cached);
       _refreshInBackground();
       return;
     }
@@ -106,7 +107,10 @@ class _ReaderPageState extends State<ReaderPage> {
     try {
       final html = await _client.fetchNoteHtml(widget.notePath);
       if (!mounted) return;
-      setState(() => _html = html);
+      if (html != _html) {
+        setState(() => _html = html);
+        _extractTitle(html);
+      }
       unawaited(widget.app.cache
           .write(widget.app.active?.baseUrl ?? '', widget.notePath, html));
     } catch (_) {

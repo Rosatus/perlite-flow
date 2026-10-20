@@ -110,13 +110,18 @@ class _LoginPageState extends State<LoginPage>
     final url = AppState.normalizeBaseUrl(_urlCtrl.text);
     if (url.isEmpty || url == _lastProbedUrl) return;
     setState(() => _probing = true);
-    final probe = PerliteClient(
-      baseUrl: url,
-      username: _userCtrl.text.isEmpty ? null : _userCtrl.text,
-      password: _passCtrl.text,
-      timeout: const Duration(seconds: 8),
-    );
-    final err = await probe.probe();
+    String? err;
+    try {
+      final probe = PerliteClient(
+        baseUrl: url,
+        username: _userCtrl.text.isEmpty ? null : _userCtrl.text,
+        password: _passCtrl.text,
+        timeout: const Duration(seconds: 8),
+      );
+      err = await probe.probe();
+    } on FormatException {
+      err = 'URL 格式不正确';
+    }
     if (!mounted) return;
     setState(() {
       _probing = false;
@@ -249,9 +254,10 @@ class _LoginPageState extends State<LoginPage>
                                     if (t.isEmpty) return '请输入服务器地址';
                                     final u =
                                         AppState.normalizeBaseUrl(t);
-                                    final host =
-                                        Uri.tryParse(u)?.host ?? '';
-                                    if (host.isEmpty) return 'URL 格式不正确';
+                                    final uri = Uri.tryParse(u);
+                                    if (uri == null || uri.host.isEmpty) {
+                                      return 'URL 格式不正确';
+                                    }
                                     return null;
                                   },
                                 ),

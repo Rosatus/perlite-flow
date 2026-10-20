@@ -31,7 +31,8 @@ class AppState extends ChangeNotifier {
       if (match.isNotEmpty) {
         final p = match.first;
         final pwd = await store.readPassword(p.id);
-        if (p.autoLogin && (p.username.isEmpty || pwd != null || !p.savePassword)) {
+        // Basic Auth profiles need a stored password to start unattended.
+        if (p.autoLogin && (p.username.isEmpty || pwd != null)) {
           await loginWithProfile(p, password: pwd, persist: false);
           return;
         }
@@ -103,7 +104,8 @@ class AppState extends ChangeNotifier {
     } else {
       await store.deletePassword(p.id);
     }
-    _activePassword = p.savePassword ? password : null;
+    // Keep unsaved passwords in memory for WebView image/subresource auth.
+    _activePassword = password;
     await _persistProfileOnly(p);
     active = p;
     client = buildClient(p, password: password);

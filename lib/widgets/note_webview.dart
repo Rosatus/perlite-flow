@@ -298,7 +298,10 @@ class _NoteWebViewState extends State<NoteWebView> {
         return NavigationActionPolicy.CANCEL;
       },
       onReceivedHttpAuthRequest: (controller, challenge) async {
-        if (widget.basicAuthUser != null &&
+        // Avoid an endless auth loop when saved credentials are rejected.
+        if (challenge is HttpAuthenticationChallenge &&
+            challenge.previousFailureCount == 0 &&
+            widget.basicAuthUser != null &&
             widget.basicAuthUser!.isNotEmpty) {
           return HttpAuthResponse(
             username: widget.basicAuthUser!,
@@ -316,8 +319,12 @@ class _NoteWebViewState extends State<NoteWebView> {
   /// configured base path to recover the `mdfile` argument.
   String? _extractNotePath(String href, String base) {
     var path = href;
+    final baseUri = Uri.tryParse(base);
+    final basePath = baseUri?.path ?? '';
     if (path.startsWith(base)) {
       path = path.substring(base.length);
+    } else if (basePath.isNotEmpty && path.startsWith(basePath)) {
+      path = path.substring(basePath.length);
     }
     // Perlite serves markdown without extension in internal links.
     if (path.startsWith('/')) path = path.substring(1);
@@ -331,8 +338,6 @@ class _NoteWebViewState extends State<NoteWebView> {
   }
 
   String _absolutize(String href, String base) {
-    if (href.startsWith('http://') || href.startsWith('https://')) return href;
-    if (href.startsWith('/')) return '$base$href';
-    return '$base/$href';
+    return Uri.parse('$base/').resolve(href).toString();
   }
 }
